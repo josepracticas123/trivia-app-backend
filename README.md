@@ -25,14 +25,16 @@ Primero funcionará todo por HTTP. Después los sockets avisarán de los cambios
 | tsx | Ejecutar TypeScript y reiniciar al guardar | Base |
 | Zod | Validar datos recibidos | 04 |
 | swagger-jsdoc, swagger-ui-express | OpenAPI y página para probar la API | 05 |
-| PostgreSQL, Prisma y adaptador compatible | Persistencia, consultas y migraciones | 06 |
+| PostgreSQL en Railway, Prisma y adaptador compatible | Persistencia, consultas y migraciones | 06 |
 | argon2 | Hash de contraseñas | 10 |
 | jsonwebtoken | Firmar y verificar JWT | 11 |
 | cors | Permitir llamadas desde el frontend en el navegador | 15 |
 | Socket.IO | Avisar a los participantes de cambios | 18 |
 | React, Vite, socket.io-client | Frontend en su repositorio | 20 |
 
-**Por ahora solo están instaladas las herramientas de la base.** Añade cada dependencia cuando su reto la necesite y guarda los cambios de `package.json` y `package-lock.json`. No necesitas `npm init`, un generador, Prisma, Docker ni una DB para empezar el reto 01.
+Añade cada dependencia cuando su reto la necesite y guarda los cambios de `package.json` y `package-lock.json`. No necesitas `npm init`, un generador, Prisma ni una DB para empezar el reto 01.
+
+Desde el reto 06, PostgreSQL se ejecutará en Railway en una DB exclusiva para desarrollo y prácticas. En tu PC ejecutarás Node, Prisma y el backend, conectados a la DB por Internet.
 
 ## Primeros pasos
 
@@ -250,9 +252,9 @@ Antes de cada PR, los tipos y la compilación deben pasar. Swagger y las pruebas
 
 Hasta el reto 12, el CRUD todavía no tiene permisos: úsalo solo en desarrollo local. A partir de ahí, registro y login son públicos, las consultas del catálogo son públicas, el CRUD es de ADMIN y partidas e historial exigen sesión y pertenencia.
 
-En el reto 06 se añadirán instrucciones comprobadas para PostgreSQL, Prisma y sus versiones. En el 21 se documentarán URLs, variables, migraciones y recuperación. Desarrollo y pruebas no usarán la DB de producción. Los secretos se configuran en el alojamiento; el frontend solo recibe la URL pública de la API.
+En el reto 06 se añadirán instrucciones comprobadas para PostgreSQL en Railway, Prisma y sus versiones. Para trabajar desde el PC, el valor de `DATABASE_PUBLIC_URL` de Railway se guarda como `DATABASE_URL` en el `.env` local; las direcciones privadas `railway.internal` se usan entre servicios de Railway. En el 21 se documentarán URLs, variables, migraciones y recuperación. Desarrollo y pruebas no usarán la DB de producción. Los secretos se configuran en el alojamiento; el frontend solo recibe la URL pública de la API.
 
-El despliegue propuesto usa Railway para backend y DB y Vercel para frontend. Revisaremos disponibilidad, costes y planes en ese momento: no se presupone alojamiento gratuito permanente. No ejecutes un seed de práctica ni un reset contra producción.
+El despliegue propuesto usa Railway para backend y DB y Vercel para frontend. Revisaremos disponibilidad, costes y planes desde el reto 06 y de nuevo antes del despliegue final: no se presupone alojamiento gratuito permanente. No ejecutes un seed de práctica ni un reset contra producción.
 
 ## Fuera del alcance inicial
 
@@ -264,6 +266,7 @@ Emparejamiento automático, temporizadores, chat, recuperación de contraseña, 
 - [TypeScript](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html).
 - [tsx](https://tsx.is/).
 - [Prisma con PostgreSQL](https://docs.prisma.io/docs/prisma-orm/quickstart/postgresql).
+- [PostgreSQL en Railway y conexión externa](https://docs.railway.com/databases/postgresql).
 - [Socket.IO](https://socket.io/docs/v4/).
 
 Empieza por [01 · Arranca tu backend](retos/01-primer-servidor.md) después de que el tutor prepare `develop`.

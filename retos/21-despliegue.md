@@ -8,9 +8,9 @@
 
 ## Trabajo por bloques
 
-1. Prepara primero un entorno de desarrollo remoto desde develop, separado de producción. Revisa con el tutor planes y costes antes de contratar servicios.
+1. Prepara primero el backend remoto desde develop junto a la DB de desarrollo de Railway usada desde el reto 06. Crea una DB independiente para producción. Revisa con el tutor planes y costes antes de ampliar o contratar servicios.
 
-2. Configura servicio Node persistente compatible con Socket.IO y PostgreSQL independiente; usa build, migración de despliegue y start acordes con la versión de Prisma. Nunca uses migrate dev, reset ni seed de práctica contra producción.
+2. Configura servicio Node persistente compatible con Socket.IO y PostgreSQL independiente; usa build, migración de despliegue y start acordes con la versión de Prisma. Para el backend alojado en Railway, configura `DATABASE_URL` mediante una referencia a la conexión privada del servicio PostgreSQL de su mismo entorno; la conexión externa usada desde el PC queda para desarrollo. Nunca uses migrate dev, reset ni seed de práctica contra producción.
 
 3. Configura frontend, URL pública de API y orígenes permitidos HTTP/socket. Documenta pasos en docs/despliegue.md; prepara un PR develop a main de cada repo y deja la publicación final al tutor.
 
