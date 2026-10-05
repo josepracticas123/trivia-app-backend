@@ -16,13 +16,13 @@
 
 ## Comprueba tu entrega
 
-- [ ] POST válido devuelve 201 y permite consultar la pregunta nueva sin revelar la solución.
-- [ ] Los IDs no se repiten aunque elimine y vuelva a crear preguntas.
-- [ ] PUT válido devuelve 200; una petición incompleta o inválida devuelve 400 sin cambios parciales.
-- [ ] DELETE devuelve 204 sin cuerpo y el siguiente GET devuelve 404.
-- [ ] PUT y DELETE de un ID inexistente devuelven 404; los datos desaparecen al reiniciar y sé explicar por qué.
-- [ ] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
-- [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
+- [x] POST válido devuelve 201 y permite consultar la pregunta nueva sin revelar la solución.
+- [x] Los IDs no se repiten aunque elimine y vuelva a crear preguntas.
+- [x] PUT válido devuelve 200; una petición incompleta o inválida devuelve 400 sin cambios parciales.
+- [x] DELETE devuelve 204 sin cuerpo y el siguiente GET devuelve 404.
+- [x] PUT y DELETE de un ID inexistente devuelven 404; los datos desaparecen al reiniciar y sé explicar por qué.
+- [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+- [x] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
 
@@ -40,11 +40,11 @@ Usa una herramienta HTTP o curl. Define una única colección compartida: crear 
 
 Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
 
-- PR y commit revisado: pendiente.
-- Prueba correcta (petición/acción y resultado): pendiente.
-- Prueba inválida o fallo (petición/acción y resultado): pendiente.
-- Comandos y resultados: pendiente.
-- Dudas o correcciones: pendiente.
+- PR y commit revisado: [PR #3](https://github.com/josepracticas123/trivia-app-backend/pull/3).
+- Prueba correcta (petición/acción y resultado): POST válido devuelve 201; PUT válido devuelve 200; DELETE válido devuelve 204 y el GET posterior devuelve 404.
+- Prueba inválida o fallo (petición/acción y resultado): POST y PUT sin body devuelven 400; POST y PUT con una opción numérica o `null` devuelven 400; las opciones `"a"` y `" a "` se consideran duplicadas; un PUT rechazado no modifica los datos de la pregunta.
+- Comandos y resultados: `npm run typecheck` y `npm run build` ejecutados correctamente, sin errores.
+- Dudas o correcciones: Al hacer una petición POST o PUT sin body, `req.body` era `undefined` y provocaba un error 500. Lo solucioné validando primero que el body existe y tiene formato de objeto. También comprobé que las opciones fueran textos antes de utilizar `trim()`, evitando errores con valores numéricos o `null`. Además, normalicé las opciones antes de comprobar duplicados.
 - Revisión y aprobación del tutor: pendiente.
 - Merge en `develop`: pendiente.
 

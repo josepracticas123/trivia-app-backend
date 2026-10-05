@@ -8,7 +8,7 @@
 
 ## Trabajo por bloques
 
-1. Reemplaza lectura, creación, actualización y eliminación por consultas a PostgreSQL.
+1. Reemplaza lectura, creación, actualización y eliminación por consultas a PostgreSQL en la DB de desarrollo de Railway preparada en el reto 06. El backend sigue ejecutándose en tu PC.
 
 2. Mantén las validaciones y respuestas públicas. Usa selección explícita de campos para no enviar la solución.
 
@@ -26,7 +26,7 @@
 
 ## Demostración al tutor
 
-¿Por qué una consulta necesita await? ¿Qué diferencia hay entre reiniciar el backend y borrar el volumen de PostgreSQL?
+¿Por qué una consulta necesita await? ¿Por qué reiniciar el backend en tu PC conserva los datos en Railway, pero borrar registros o hacer un reset de la DB los elimina?
 
 ## Pistas
 
