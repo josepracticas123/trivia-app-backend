@@ -143,23 +143,28 @@ En cada reto anota:
 - Conceptos y explicación propia: Swagger permite visualizar y probar las rutas de una API desde el navegador. OpenAPI describe los endpoints, sus parámetros, los datos que reciben y las respuestas que pueden devolver. También he aprendido que la documentación de Swagger no sustituye la validación del backend. Por ejemplo, se ha quitado la restricción `pattern` del parámetro `id` en Swagger para poder enviar valores como `hola`, pero el backend sigue validándolo con Zod y devuelve un `400`.
 
 - Pruebas y resultados:
-  - `GET /api/questions` → `200`.
-  - `GET /api/questions/2` → `200`.
-  - `GET /api/questions/999` → `404`.
-  - `GET /api/questions/hola` → `400`.
-  - `POST /api/questions` → `201`.
-  - `PUT /api/questions/6` → `200`.
-  - `DELETE /api/questions/6` → `204`.
-  - Las respuestas de las preguntas no incluyen `respuestaCorrecta`.
+  - Desde Swagger en desarrollo: `GET /api/questions` → `200`; `POST /api/questions` → `201`; `GET /api/questions/{id}` → `200`; `PUT /api/questions/{id}` → `200`; `DELETE /api/questions/{id}` → `204`; al consultar de nuevo el ID eliminado → `404`.
+  - Body válido usado en POST y PUT:
+    ```json
+    {
+      "enunciado": "  UI created question  ",
+      "opciones": [" Alpha ", "Beta", "Gamma", "Delta"],
+      "respuestaCorrecta": 2
+    }
+    ```
+    El servidor elimina los espacios iniciales/finales y las respuestas públicas no incluyen `respuestaCorrecta`.
+  - Casos probados desde Swagger, modificando un único dato respecto al body válido: añadir `id: 999`; cambiar solo `enunciado` a espacios; cambiar solo una opción a espacios; cambiar solo una opción para duplicarla tras limpiar espacios. Cada caso devuelve `400 VALIDATION_ERROR`.
+  - `GET /api/questions/hola` desde Swagger → `400 VALIDATION_ERROR`; `GET /api/questions/999` → `404 QUESTION_NOT_FOUND`.
+  - JSON mal formado en POST → `400 INVALID_JSON` con el mensaje `El JSON enviado no es válido`.
+  - En modo desarrollo y con `npm start`: `/docs` y `/api/openapi.json` → `200`; el documento incluye las operaciones de bienvenida, health, OpenAPI y CRUD. También se comprobó CRUD y los errores 400/404 con el servidor compilado.
   - `npm run typecheck` → correcto.
   - `npm run build` → correcto.
-  - `npm start` → correcto.
 
 - Error y solución: inicialmente Swagger impedía enviar `hola` como `id` porque el esquema OpenAPI tenía un `pattern` que limitaba el valor antes de enviarlo al servidor. Se eliminó ese `pattern` de la documentación de Swagger, manteniendo la validación real en Zod. Así Swagger puede enviar el valor inválido y comprobar que el backend responde con `400`.
 
 - Dudas: ninguna pendiente en este reto.
 
-- PR y correcciones: se realizaron las correcciones necesarias en la documentación OpenAPI y se comprobaron tanto el modo de desarrollo como la versión compilada.
+- PR y correcciones: [PR #5 hacia `develop`](https://github.com/josepracticas123/trivia-app-backend/pull/5), abierto para revisión del tutor. Se ajustó el esquema de entrada, se documentaron los errores INVALID_JSON e INTERNAL_SERVER_ERROR y se añadió el endpoint OpenAPI a la especificación. La aprobación y el merge siguen pendientes.
 
 ## 06 · Prepara PostgreSQL y Prisma
 

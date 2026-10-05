@@ -48,18 +48,24 @@ const swaggerDefinition = {
       // Representa los datos necesarios para crear o actualizar una pregunta.
       // Aquí SÍ incluimos respuestaCorrecta porque forma parte de la entrada.
       PreguntaInput: {
+        description:
+          "El servidor elimina los espacios al principio y al final de enunciado y opciones. Los textos no pueden quedar vacíos después de esa limpieza y las opciones deben ser distintas después de limpiarlas.",
         type: "object",
+        additionalProperties: false,
         properties: {
           enunciado: {
             type: "string",
+            minLength: 1,
             example: "¿Cuál es la capital de España?",
           },
           opciones: {
             type: "array",
             minItems: 4,
             maxItems: 4,
+            uniqueItems: true,
             items: {
               type: "string",
+              minLength: 1,
             },
             example: [
               "Madrid",

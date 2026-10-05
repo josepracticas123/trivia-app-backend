@@ -28,7 +28,7 @@
 
 - [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
 
-- [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
+- [x] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
 
@@ -48,20 +48,28 @@ Los comentarios de swagger-jsdoc y Zod no se sincronizan automáticamente. Revis
 
 Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
 
-- PR y commit revisado: pendiente. Se abrirá el PR hacia `develop` cuando finalice la preparación del reto.
+- PR y commit revisado: [PR #5](https://github.com/josepracticas123/trivia-app-backend/pull/5), abierto hacia `develop`.
 
 - Prueba correcta (petición/acción y resultado):
   - `GET /api/questions` desde Swagger → `200`.
-  - `GET /api/questions/2` desde Swagger → `200`.
-  - `POST /api/questions` desde Swagger → `201`.
-  - `PUT /api/questions/6` desde Swagger → `200`.
-  - `DELETE /api/questions/6` desde Swagger → `204`.
+  - Body válido usado en POST y PUT desde Swagger:
+    ```json
+    {
+      "enunciado": "  UI created question  ",
+      "opciones": [" Alpha ", "Beta", "Gamma", "Delta"],
+      "respuestaCorrecta": 2
+    }
+    ```
+  - `POST /api/questions` → `201`; `GET /api/questions/{id}` → `200`; `PUT /api/questions/{id}` → `200`; `DELETE /api/questions/{id}` → `204`; el GET posterior del ID eliminado → `404`.
+  - Las respuestas públicas contienen los espacios normalizados y no incluyen `respuestaCorrecta`.
   - `/docs` carga correctamente.
-  - `GET /api/openapi.json` devuelve el documento OpenAPI correctamente.
+  - `GET /api/openapi.json` devuelve el documento OpenAPI correctamente e incluye todas las operaciones.
 
 - Prueba inválida o fallo (petición/acción y resultado):
-  - `GET /api/questions/hola` desde Swagger → `400`.
-  - `GET /api/questions/999` desde Swagger → `404`.
+  - `GET /api/questions/hola` desde Swagger → `400 VALIDATION_ERROR`.
+  - `GET /api/questions/999` desde Swagger → `404 QUESTION_NOT_FOUND`.
+  - Cambiando un único dato del body válido en cada POST: campo adicional `id: 999`, `enunciado` con solo espacios, una opción con solo espacios, opción duplicada tras limpiar espacios → cada uno devuelve `400 VALIDATION_ERROR`.
+  - POST con JSON mal formado → `400 INVALID_JSON`.
   - Para poder realizar la prueba de `400`, se eliminó el `pattern` del parámetro `id` en la documentación OpenAPI. La validación real del backend se mantiene mediante Zod.
 
 - Comandos y resultados:

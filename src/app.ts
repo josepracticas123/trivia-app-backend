@@ -35,7 +35,42 @@ export const app = express();
 // Muestra la documentación de la API en /docs usando Swagger UI.
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Devuelve el documento OpenAPI en formato JSON.
+/**
+ * @openapi
+ * /api/openapi.json:
+ *   get:
+ *     summary: Obtener el documento OpenAPI
+ *     description: Devuelve la especificación OpenAPI de esta API en formato JSON.
+ *     responses:
+ *       200:
+ *         description: Documento OpenAPI 3.0
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - openapi
+ *                 - info
+ *                 - paths
+ *               properties:
+ *                 openapi:
+ *                   type: string
+ *                   example: "3.0.0"
+ *                 info:
+ *                   type: object
+ *                 paths:
+ *                   type: object
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
+ */
 app.get("/api/openapi.json", (_req, res) => {
   res.json(swaggerSpec);
 });
@@ -71,6 +106,16 @@ let siguienteId =
  *                 message:
  *                   type: string
  *                   example: Bienvenido a TriviaApp Backend
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
  */
 app.get("/", (_req, res) => {
   res.json({ message: "Bienvenido a TriviaApp Backend" });
@@ -93,6 +138,16 @@ app.get("/", (_req, res) => {
  *                 status:
  *                   type: string
  *                   example: ok
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
  */
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
@@ -113,6 +168,16 @@ app.get("/health", (_req, res) => {
  *               type: array
  *               items:
  *                 $ref: "#/components/schemas/PreguntaPublica"
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
  */
 app.get("/api/questions", (_req, res) => {
   const preguntasPublicas = preguntas.map((pregunta) => {
@@ -169,6 +234,16 @@ app.get("/api/questions", (_req, res) => {
  *               error:
  *                 code: QUESTION_NOT_FOUND
  *                 message: Pregunta no encontrada
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
  */
 app.get("/api/questions/:id", (req, res) => {
   // Validamos los parámetros de la URL usando Zod.
@@ -236,15 +311,34 @@ app.get("/api/questions/:id", (req, res) => {
  *             schema:
  *               $ref: "#/components/schemas/PreguntaPublica"
  *       400:
- *         description: Los datos enviados no son válidos
+ *         description: El JSON está mal formado o los datos enviados no son válidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             examples:
+ *               invalidJson:
+ *                 summary: JSON mal formado
+ *                 value:
+ *                   error:
+ *                     code: INVALID_JSON
+ *                     message: El JSON enviado no es válido
+ *               validationError:
+ *                 summary: Datos no válidos
+ *                 value:
+ *                   error:
+ *                     code: VALIDATION_ERROR
+ *                     message: Los datos enviados no son válidos
+ *       500:
+ *         description: Error interno del servidor
  *         content:
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/Error"
  *             example:
  *               error:
- *                 code: VALIDATION_ERROR
- *                 message: Los datos enviados no son válidos
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
  */
 app.post("/api/questions", (req, res) => {
   // Validamos el body usando el esquema de Zod.
@@ -318,15 +412,24 @@ app.post("/api/questions", (req, res) => {
  *             schema:
  *               $ref: "#/components/schemas/PreguntaPublica"
  *       400:
- *         description: Los datos o el ID no son válidos
+ *         description: El JSON está mal formado, o los datos o el ID no son válidos
  *         content:
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/Error"
- *             example:
- *               error:
- *                 code: VALIDATION_ERROR
- *                 message: Los datos enviados no son válidos
+ *             examples:
+ *               invalidJson:
+ *                 summary: JSON mal formado
+ *                 value:
+ *                   error:
+ *                     code: INVALID_JSON
+ *                     message: El JSON enviado no es válido
+ *               validationError:
+ *                 summary: Datos o ID no válidos
+ *                 value:
+ *                   error:
+ *                     code: VALIDATION_ERROR
+ *                     message: Los datos enviados no son válidos
  *       404:
  *         description: La pregunta no existe
  *         content:
@@ -337,6 +440,16 @@ app.post("/api/questions", (req, res) => {
  *               error:
  *                 code: QUESTION_NOT_FOUND
  *                 message: Pregunta no encontrada
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
  */
 app.put("/api/questions/:id", (req, res) => {
   // Validamos el ID de la URL.
@@ -434,6 +547,16 @@ app.put("/api/questions/:id", (req, res) => {
  *               error:
  *                 code: QUESTION_NOT_FOUND
  *                 message: Pregunta no encontrada
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
  */
 app.delete("/api/questions/:id", (req, res) => {
   // Validamos el ID de la URL.
