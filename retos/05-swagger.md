@@ -16,12 +16,18 @@
 
 ## Comprueba tu entrega
 
-- [ ] /docs carga y /api/openapi.json devuelve un documento OpenAPI válido.
-- [ ] Todas las rutas existentes tienen método, descripción, entrada y respuestas coherentes con el servidor.
-- [ ] Puedo completar el CRUD y reproducir un 400 y un 404 desde Swagger.
-- [ ] Los ejemplos de respuesta no incluyen respuestaCorrecta; el esquema de entrada sí permite enviarla al crear o editar.
-- [ ] La documentación funciona tanto con npm run dev como con npm run build y npm start.
-- [ ] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+- [x] /docs carga y /api/openapi.json devuelve un documento OpenAPI válido.
+
+- [x] Todas las rutas existentes tienen método, descripción, entrada y respuestas coherentes con el servidor.
+
+- [x] Puedo completar el CRUD y reproducir un 400 y un 404 desde Swagger.
+
+- [x] Los ejemplos de respuesta no incluyen respuestaCorrecta; el esquema de entrada sí permite enviarla al crear o editar.
+
+- [x] La documentación funciona tanto con npm run dev como con npm run build y npm start.
+
+- [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+
 - [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
@@ -35,18 +41,42 @@ Los comentarios de swagger-jsdoc y Zod no se sincronizan automáticamente. Revis
 ## Documentación
 
 - [swagger-jsdoc](https://github.com/Surnet/swagger-jsdoc)
+
 - [Swagger UI para Express](https://github.com/scottie1984/swagger-ui-express)
 
 ## Registro de entrega y revisión
 
 Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
 
-- PR y commit revisado: pendiente.
-- Prueba correcta (petición/acción y resultado): pendiente.
-- Prueba inválida o fallo (petición/acción y resultado): pendiente.
-- Comandos y resultados: pendiente.
-- Dudas o correcciones: pendiente.
+- PR y commit revisado: pendiente. Se abrirá el PR hacia `develop` cuando finalice la preparación del reto.
+
+- Prueba correcta (petición/acción y resultado):
+  - `GET /api/questions` desde Swagger → `200`.
+  - `GET /api/questions/2` desde Swagger → `200`.
+  - `POST /api/questions` desde Swagger → `201`.
+  - `PUT /api/questions/6` desde Swagger → `200`.
+  - `DELETE /api/questions/6` desde Swagger → `204`.
+  - `/docs` carga correctamente.
+  - `GET /api/openapi.json` devuelve el documento OpenAPI correctamente.
+
+- Prueba inválida o fallo (petición/acción y resultado):
+  - `GET /api/questions/hola` desde Swagger → `400`.
+  - `GET /api/questions/999` desde Swagger → `404`.
+  - Para poder realizar la prueba de `400`, se eliminó el `pattern` del parámetro `id` en la documentación OpenAPI. La validación real del backend se mantiene mediante Zod.
+
+- Comandos y resultados:
+  - `npm run typecheck` → correcto.
+  - `npm run build` → correcto.
+  - `npm start` → correcto.
+  - `npm run dev` → correcto.
+  - Se comprobó que Swagger funciona tanto en desarrollo como con el código compilado.
+
+- Dudas o correcciones:
+  - Se corrigió la documentación OpenAPI del parámetro `id` para que Swagger permitiera enviar valores inválidos y comprobar la respuesta `400` real del backend.
+  - Se comprobó que las respuestas documentadas de las preguntas no incluyen `respuestaCorrecta`, mientras que el esquema de entrada sí permite enviarla.
+
 - Revisión y aprobación del tutor: pendiente.
+
 - Merge en `develop`: pendiente.
 
 No empieces el siguiente reto hasta que este PR esté aprobado e integrado. Las correcciones van en la misma rama y el mismo PR.

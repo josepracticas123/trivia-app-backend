@@ -138,12 +138,28 @@ En cada reto anota:
 
 ## 05 · Prueba las rutas en Swagger
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- Lo que he construido: he documentado la API con Swagger/OpenAPI y he añadido la interfaz Swagger UI en `/docs`. También he añadido el endpoint `/api/openapi.json` para consultar la especificación OpenAPI.
+
+- Conceptos y explicación propia: Swagger permite visualizar y probar las rutas de una API desde el navegador. OpenAPI describe los endpoints, sus parámetros, los datos que reciben y las respuestas que pueden devolver. También he aprendido que la documentación de Swagger no sustituye la validación del backend. Por ejemplo, se ha quitado la restricción `pattern` del parámetro `id` en Swagger para poder enviar valores como `hola`, pero el backend sigue validándolo con Zod y devuelve un `400`.
+
+- Pruebas y resultados:
+  - `GET /api/questions` → `200`.
+  - `GET /api/questions/2` → `200`.
+  - `GET /api/questions/999` → `404`.
+  - `GET /api/questions/hola` → `400`.
+  - `POST /api/questions` → `201`.
+  - `PUT /api/questions/6` → `200`.
+  - `DELETE /api/questions/6` → `204`.
+  - Las respuestas de las preguntas no incluyen `respuestaCorrecta`.
+  - `npm run typecheck` → correcto.
+  - `npm run build` → correcto.
+  - `npm start` → correcto.
+
+- Error y solución: inicialmente Swagger impedía enviar `hola` como `id` porque el esquema OpenAPI tenía un `pattern` que limitaba el valor antes de enviarlo al servidor. Se eliminó ese `pattern` de la documentación de Swagger, manteniendo la validación real en Zod. Así Swagger puede enviar el valor inválido y comprobar que el backend responde con `400`.
+
+- Dudas: ninguna pendiente en este reto.
+
+- PR y correcciones: se realizaron las correcciones necesarias en la documentación OpenAPI y se comprobaron tanto el modo de desarrollo como la versión compilada.
 
 ## 06 · Prepara PostgreSQL y Prisma
 
