@@ -1,63 +1,252 @@
+// Este archivo contiene la configuración principal de la aplicación Express,
+// incluyendo las rutas y middlewares necesarios para manejar las peticiones HTTP.
+
 import express from "express";
+
+// Importa Swagger UI para mostrar la documentación de la API en /docs.
+import swaggerUi from "swagger-ui-express";
+
+// Importa la especificación OpenAPI generada desde swagger.ts.
+import { swaggerSpec } from "./docs/swagger.js";
+
 // Importa las preguntas desde el archivo de datos.
 import { preguntas } from "./data/questions.js";
+
 // Importa el tipo Pregunta desde el archivo de tipos.
 import type { Pregunta } from "./types/question.js";
-// Importa el esquema de validación de preguntas desde el archivo de esquemas.
-import { questionSchema } from "./schemas/question.schema.js";
-// Importa el esquema de validación de ID de pregunta desde el archivo de esquemas.
-import { questionIdSchema } from "./schemas/question-id.schema.js";
-// Importa el middleware de manejo de errores de JSON desde el archivo de middlewares.
-import { jsonErrorMiddleware } from "./middlewares/error.middleware.js";
-// Importa el middleware de manejo de rutas no encontradas desde el archivo de middlewares.
-import { notFoundMiddleware } from "./middlewares/error.middleware.js";
-// Importa el middleware de manejo de errores internos desde el archivo de middlewares.
-import { errorMiddleware } from "./middlewares/error.middleware.js";
 
-// Configura la aplicación. Abrir el puerto es responsabilidad de server.ts.
+// Importa el esquema de validación de preguntas.
+import { questionSchema } from "./schemas/question.schema.js";
+
+// Importa el esquema de validación del ID de pregunta.
+import { questionIdSchema } from "./schemas/question-id.schema.js";
+
+// Importa los middlewares de manejo de errores.
+import {
+  jsonErrorMiddleware,
+  notFoundMiddleware,
+  errorMiddleware,
+} from "./middlewares/error.middleware.js";
+
+// Configura la aplicación.
+// Abrir el puerto es responsabilidad de server.ts.
 export const app = express();
 
-// Convierte los cuerpos JSON de las peticiones en datos disponibles en req.body.
+// Muestra la documentación de la API en /docs usando Swagger UI.
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+/**
+ * @openapi
+ * /api/openapi.json:
+ *   get:
+ *     summary: Obtener el documento OpenAPI
+ *     description: Devuelve la especificación OpenAPI de esta API en formato JSON.
+ *     responses:
+ *       200:
+ *         description: Documento OpenAPI 3.0
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - openapi
+ *                 - info
+ *                 - paths
+ *               properties:
+ *                 openapi:
+ *                   type: string
+ *                   example: "3.0.0"
+ *                 info:
+ *                   type: object
+ *                 paths:
+ *                   type: object
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
+ */
+app.get("/api/openapi.json", (_req, res) => {
+  res.json(swaggerSpec);
+});
+
+// Convierte los cuerpos JSON de las peticiones
+// en datos disponibles en req.body.
 app.use(express.json());
 
 // Captura los errores producidos por un JSON mal formado.
 app.use(jsonErrorMiddleware);
 
-// Guarda el siguiente ID disponible para la nueva pregunta. Si no hay preguntas, el ID será 1.
+// Guarda el siguiente ID disponible para una nueva pregunta.
+// Si no hay preguntas, el ID inicial será 1.
 let siguienteId =
   preguntas.length > 0
     ? Math.max(...preguntas.map((pregunta) => pregunta.id)) + 1
     : 1;
-// Ruta de bienvenida de la aplicación.
+
+/**
+ * @openapi
+ * /:
+ *   get:
+ *     summary: Mensaje de bienvenida
+ *     description: Comprueba que la API está disponible.
+ *     responses:
+ *       200:
+ *         description: Mensaje de bienvenida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Bienvenido a TriviaApp Backend
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
+ */
 app.get("/", (_req, res) => {
   res.json({ message: "Bienvenido a TriviaApp Backend" });
 });
 
-// Comprueba que el servidor está disponible.
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     summary: Comprobar estado de la API
+ *     description: Comprueba que el servidor está funcionando correctamente.
+ *     responses:
+ *       200:
+ *         description: API funcionando correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
+ */
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-//Ruta para obtener todas las preguntas públicas (sin la respuesta correcta).
+/**
+ * @openapi
+ * /api/questions:
+ *   get:
+ *     summary: Obtener todas las preguntas
+ *     description: Devuelve todas las preguntas sin mostrar la respuesta correcta.
+ *     responses:
+ *       200:
+ *         description: Lista de preguntas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: "#/components/schemas/PreguntaPublica"
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
+ */
 app.get("/api/questions", (_req, res) => {
   const preguntasPublicas = preguntas.map((pregunta) => {
-    // Devuelve solo los campos públicos de la pregunta, excluyendo la respuesta correcta.
+    // Creamos un objeto público sin incluir respuestaCorrecta.
     return {
-      //Generamos un objeto nuevo con los campos públicos de la pregunta, excluyendo la respuesta correcta.
       id: pregunta.id,
       enunciado: pregunta.enunciado,
       opciones: pregunta.opciones,
     };
   });
-  // Devuelve las preguntas públicas como respuesta JSON.
-  res.json(preguntasPublicas); //
+
+  // Devolvemos las preguntas públicas como respuesta JSON.
+  res.json(preguntasPublicas);
 });
-//////////////////////////////////
-//GET
-///////////////////////////////
-// Ruta para obtener una pregunta específica por su ID (sin la respuesta correcta).
+
+/**
+ * @openapi
+ * /api/questions/{id}:
+ *   get:
+ *     summary: Obtener una pregunta por ID
+ *     description: Devuelve una pregunta concreta sin mostrar la respuesta correcta.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID de la pregunta.
+ *         schema:
+ *           type: string
+ *         example: "1"
+ *     responses:
+ *       200:
+ *         description: Pregunta encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/PreguntaPublica"
+ *       400:
+ *         description: El ID enviado no es válido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: VALIDATION_ERROR
+ *                 message: Los datos enviados no son válidos
+ *       404:
+ *         description: La pregunta no existe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: QUESTION_NOT_FOUND
+ *                 message: Pregunta no encontrada
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
+ */
 app.get("/api/questions/:id", (req, res) => {
-  // Validamos los parámetros de la URL usando el esquema de Zod.
+  // Validamos los parámetros de la URL usando Zod.
   const resultadoValidacion = questionIdSchema.safeParse(req.params);
 
   // Si el ID no cumple el esquema, devolvemos un error 400.
@@ -72,9 +261,12 @@ app.get("/api/questions/:id", (req, res) => {
 
   // Usamos el ID que Zod ha validado.
   const id = Number(resultadoValidacion.data.id);
-  const pregunta = preguntas.find((pregunta) => pregunta.id === id); // Busca la pregunta con el ID especificado.
+
+  // Buscamos la pregunta con ese ID.
+  const pregunta = preguntas.find((pregunta) => pregunta.id === id);
+
+  // Si no existe, devolvemos un error 404.
   if (!pregunta) {
-    // Si no existe una pregunta con ese ID, devolvemos un error 404.
     return res.status(404).json({
       error: {
         code: "QUESTION_NOT_FOUND",
@@ -82,7 +274,8 @@ app.get("/api/questions/:id", (req, res) => {
       },
     });
   }
-  // Devuelve la pregunta encontrada (sin la respuesta correcta) como respuesta JSON.
+
+  // Devolvemos la pregunta sin mostrar respuestaCorrecta.
   return res.json({
     id: pregunta.id,
     enunciado: pregunta.enunciado,
@@ -90,14 +283,68 @@ app.get("/api/questions/:id", (req, res) => {
   });
 });
 
-///////////////////////////////
-//POST
-///////////////////////////////
-// Crear una nueva pregunta.
+/**
+ * @openapi
+ * /api/questions:
+ *   post:
+ *     summary: Crear una pregunta
+ *     description: Crea una nueva pregunta de trivia.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/PreguntaInput"
+ *           example:
+ *             enunciado: ¿Cuál es la capital de España?
+ *             opciones:
+ *               - Madrid
+ *               - Barcelona
+ *               - Valencia
+ *               - Sevilla
+ *             respuestaCorrecta: 0
+ *     responses:
+ *       201:
+ *         description: Pregunta creada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/PreguntaPublica"
+ *       400:
+ *         description: El JSON está mal formado o los datos enviados no son válidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             examples:
+ *               invalidJson:
+ *                 summary: JSON mal formado
+ *                 value:
+ *                   error:
+ *                     code: INVALID_JSON
+ *                     message: El JSON enviado no es válido
+ *               validationError:
+ *                 summary: Datos no válidos
+ *                 value:
+ *                   error:
+ *                     code: VALIDATION_ERROR
+ *                     message: Los datos enviados no son válidos
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
+ */
 app.post("/api/questions", (req, res) => {
-  //Validamos el body de la petición usando el esquema de validación de preguntas.
+  // Validamos el body usando el esquema de Zod.
   const resultadoValidacion = questionSchema.safeParse(req.body);
-  //Si la validación falla, devolvemos un error 400 con un mensaje de error genérico.
+
+  // Si la validación falla, devolvemos un error 400.
   if (!resultadoValidacion.success) {
     return res.status(400).json({
       error: {
@@ -106,34 +353,109 @@ app.post("/api/questions", (req, res) => {
       },
     });
   }
-  //Usamos los datos que zod nos devuelve tras la validación.
+
+  // Usamos los datos que Zod ha validado.
   const { enunciado, opciones, respuestaCorrecta } = resultadoValidacion.data;
 
-  // Creamos un nuevo objeto de tipo Pregunta con los datos recibidos.
+  // Creamos la nueva pregunta.
   const nuevaPregunta: Pregunta = {
-    id: siguienteId++, // Asigna el siguiente ID disponible a la nueva pregunta.
+    id: siguienteId++,
     enunciado,
-    opciones, // Utiliza las opciones limpias (sin espacios en blanco).
+    opciones,
     respuestaCorrecta,
   };
-  // Añadimos la nueva pregunta al array de preguntas.
+
+  // Añadimos la pregunta al array.
   preguntas.push(nuevaPregunta);
-  // Devolvemos la nueva pregunta como respuesta JSON.
+
+  // Devolvemos la pregunta sin revelar respuestaCorrecta.
   return res.status(201).json({
     id: nuevaPregunta.id,
     enunciado: nuevaPregunta.enunciado,
     opciones: nuevaPregunta.opciones,
   });
 });
-////////////////////////////////
-//PUT
-///////////////////////////////
-// Editar una pregunta existente por su ID (sustituye enunciado, opciones y respuestaCorrecta).
+
+/**
+ * @openapi
+ * /api/questions/{id}:
+ *   put:
+ *     summary: Actualizar una pregunta
+ *     description: Sustituye los datos de una pregunta existente.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID de la pregunta.
+ *         schema:
+ *           type: string
+ *         example: "1"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/PreguntaInput"
+ *           example:
+ *             enunciado: ¿Cuál es la capital de Francia?
+ *             opciones:
+ *               - París
+ *               - Madrid
+ *               - Roma
+ *               - Berlín
+ *             respuestaCorrecta: 0
+ *     responses:
+ *       200:
+ *         description: Pregunta actualizada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/PreguntaPublica"
+ *       400:
+ *         description: El JSON está mal formado, o los datos o el ID no son válidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             examples:
+ *               invalidJson:
+ *                 summary: JSON mal formado
+ *                 value:
+ *                   error:
+ *                     code: INVALID_JSON
+ *                     message: El JSON enviado no es válido
+ *               validationError:
+ *                 summary: Datos o ID no válidos
+ *                 value:
+ *                   error:
+ *                     code: VALIDATION_ERROR
+ *                     message: Los datos enviados no son válidos
+ *       404:
+ *         description: La pregunta no existe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: QUESTION_NOT_FOUND
+ *                 message: Pregunta no encontrada
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
+ */
 app.put("/api/questions/:id", (req, res) => {
-  // Validamos los parámetros de la URL usando el esquema de Zod.
+  // Validamos el ID de la URL.
   const resultadoValidacionId = questionIdSchema.safeParse(req.params);
 
-  // Si el ID no cumple el esquema, devolvemos un error 400.
+  // Si el ID no es válido, devolvemos un error 400.
   if (!resultadoValidacionId.success) {
     return res.status(400).json({
       error: {
@@ -143,12 +465,14 @@ app.put("/api/questions/:id", (req, res) => {
     });
   }
 
-  // Usamos el ID que Zod ha validado.
+  // Convertimos el ID validado a número.
   const id = Number(resultadoValidacionId.data.id);
-  // Busca la pregunta con el ID especificado.
+
+  // Buscamos la pregunta.
   const pregunta = preguntas.find((pregunta) => pregunta.id === id);
+
+  // Si no existe, devolvemos un error 404.
   if (!pregunta) {
-    // Si no se encuentra la pregunta, devuelve un error 404.
     return res.status(404).json({
       error: {
         code: "QUESTION_NOT_FOUND",
@@ -156,10 +480,11 @@ app.put("/api/questions/:id", (req, res) => {
       },
     });
   }
-  // Validamos el body de la petición usando el mismo esquema que usamos al crear preguntas.
+
+  // Validamos el body de la petición.
   const resultadoValidacion = questionSchema.safeParse(req.body);
 
-  // Si la validación falla, devolvemos un error 400 con un formato consistente.
+  // Si el body no es válido, devolvemos un error 400.
   if (!resultadoValidacion.success) {
     return res.status(400).json({
       error: {
@@ -168,30 +493,76 @@ app.put("/api/questions/:id", (req, res) => {
       },
     });
   }
-  // Usamos únicamente los datos que Zod ha validado correctamente.
+
+  // Usamos únicamente los datos validados por Zod.
   const { enunciado, opciones, respuestaCorrecta } = resultadoValidacion.data;
 
-  // Sustituye todos los campos editables de la pregunta (sin cambios parciales).
+  // Sustituimos los datos de la pregunta.
   pregunta.enunciado = enunciado;
-  pregunta.opciones = opciones; // Sustituye las opciones con las opciones limpias (sin espacios en blanco).
+  pregunta.opciones = opciones;
   pregunta.respuestaCorrecta = respuestaCorrecta;
-  // Devolvemos la pregunta actualizada sin revelar la respuesta correcta.
+
+  // Devolvemos la pregunta actualizada sin respuestaCorrecta.
   return res.status(200).json({
     id: pregunta.id,
-    enunciado: pregunta.enunciado, // Devuelve el enunciado actualizado de la pregunta.
-    opciones: pregunta.opciones, // Devuelve las opciones actualizadas de la pregunta.
+    enunciado: pregunta.enunciado,
+    opciones: pregunta.opciones,
   });
 });
 
-////////////////////////////////
-//DELETE
-///////////////////////////////
-// Eliminar una pregunta existente por su ID.
+/**
+ * @openapi
+ * /api/questions/{id}:
+ *   delete:
+ *     summary: Eliminar una pregunta
+ *     description: Elimina una pregunta existente por su ID.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID de la pregunta.
+ *         schema:
+ *           type: string
+ *         example: "1"
+ *     responses:
+ *       204:
+ *         description: Pregunta eliminada correctamente
+ *       400:
+ *         description: El ID no es válido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: VALIDATION_ERROR
+ *                 message: Los datos enviados no son válidos
+ *       404:
+ *         description: La pregunta no existe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: QUESTION_NOT_FOUND
+ *                 message: Pregunta no encontrada
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: INTERNAL_SERVER_ERROR
+ *                 message: Ha ocurrido un error interno en el servidor
+ */
 app.delete("/api/questions/:id", (req, res) => {
-  // Validamos los parámetros de la URL usando el esquema de Zod.
+  // Validamos el ID de la URL.
   const resultadoValidacionId = questionIdSchema.safeParse(req.params);
 
-  // Si el ID no cumple el esquema, devolvemos un error 400.
+  // Si el ID no es válido, devolvemos un error 400.
   if (!resultadoValidacionId.success) {
     return res.status(400).json({
       error: {
@@ -201,12 +572,14 @@ app.delete("/api/questions/:id", (req, res) => {
     });
   }
 
-  // Usamos el ID que Zod ha validado.
+  // Convertimos el ID validado a número.
   const id = Number(resultadoValidacionId.data.id);
-  //Busca la posición de la pregunta dentro del array de preguntas.
+
+  // Buscamos la posición de la pregunta.
   const index = preguntas.findIndex((pregunta) => pregunta.id === id);
+
+  // Si no existe, devolvemos un error 404.
   if (index === -1) {
-    // Si no se encuentra la pregunta, devuelve un error 404.
     return res.status(404).json({
       error: {
         code: "QUESTION_NOT_FOUND",
@@ -214,13 +587,17 @@ app.delete("/api/questions/:id", (req, res) => {
       },
     });
   }
-  //Elimina la pregunta del array de preguntas usando la posición encontrada.
+
+  // Eliminamos la pregunta del array.
   preguntas.splice(index, 1);
-  //Indica que la pregunta se ha eliminado correctamente.
+
+  // Respondemos con 204 sin contenido.
   return res.status(204).send();
 });
 
-// Si ninguna ruta anterior coincide con la petición, devolvemos un error 404.
+// Si ninguna ruta anterior coincide con la petición,
+// devolvemos un error 404.
 app.use(notFoundMiddleware);
-// Los errores inesperados no deben mostrar detalles internos al cliente, solo un mensaje genérico.
+
+// Los errores inesperados se gestionan mediante este middleware.
 app.use(errorMiddleware);
