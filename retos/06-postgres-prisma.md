@@ -16,13 +16,13 @@
 
 ## Comprueba tu entrega
 
-- [ ] PostgreSQL está disponible en Railway y Prisma se conecta desde mi PC usando `DATABASE_URL` con la conexión externa.
-- [ ] La migración está en Git y puede preparar otra base de desarrollo vacía.
-- [ ] El seed crea al menos cinco preguntas y ejecutarlo dos veces no las duplica.
-- [ ] Cerrar y volver a abrir la conexión desde mi PC conserva las preguntas guardadas en Railway.
-- [ ] Las credenciales reales y el cliente generado no se suben; esquema, configuración necesaria y migraciones sí.
+- [x] PostgreSQL está disponible en Railway y Prisma se conecta desde mi PC usando `DATABASE_URL` con la conexión externa.
+- [x] La migración está en Git y puede preparar otra base de desarrollo vacía.
+- [x] El seed crea al menos cinco preguntas y ejecutarlo dos veces no las duplica.
+- [x] Cerrar y volver a abrir la conexión desde mi PC conserva las preguntas guardadas en Railway.
+- [x] Las credenciales reales y el cliente generado no se suben; esquema, configuración necesaria y migraciones sí.
 - [ ] El README recoge versiones, preparación de Railway, configuración de `.env`, comandos y cómo inspeccionar los datos con Prisma Studio o la vista de datos de Railway.
-- [ ] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+- [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
 - [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
@@ -45,13 +45,18 @@ La DB de prácticas debe estar separada de producción. El seed y cualquier rese
 Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
 
 - PR y commit revisado: pendiente.
-- Prueba correcta (petición/acción y resultado): pendiente.
-- Prueba inválida o fallo (petición/acción y resultado): pendiente.
-- Comandos y resultados: pendiente.
-- Dudas o correcciones: pendiente.
-- Revisión y aprobación del tutor: pendiente.
-- Merge en `develop`: pendiente.
 
+- Prueba correcta (petición/acción y resultado): completada. PostgreSQL está conectado mediante Railway, Prisma puede acceder a la base de datos y el seed crea las cinco preguntas correctamente.
+
+- Prueba inválida o fallo (petición/acción y resultado): completada. Inicialmente Prisma no podía conectarse porque `DATABASE_URL` utilizaba una dirección privada `railway.internal`, no accesible desde el PC. Se sustituyó por la conexión externa de Railway y la conexión quedó funcionando correctamente.
+
+- Comandos y resultados: completado. `npx prisma migrate status`, `npm run seed`, `npm run typecheck` y `npm run build` se ejecutan correctamente.
+
+- Dudas o correcciones: completado. Se corrigió la URL de conexión de Railway y la configuración del cliente de Prisma 7 para utilizar `@prisma/adapter-pg`. También se comprobó que el seed fuera repetible y no duplicara las preguntas.
+
+- Revisión y aprobación del tutor: pendiente.
+
+- Merge en `develop`: pendiente.
 No empieces el siguiente reto hasta que este PR esté aprobado e integrado. Las correcciones van en la misma rama y el mismo PR.
 
 [Volver al README](../README.md) · [Reto 05](05-swagger.md) · [Reto 07](07-crud-persistente.md)
