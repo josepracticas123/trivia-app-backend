@@ -170,96 +170,37 @@ En cada reto anota:
 
 - Lo que he construido:
 
-  En este reto he preparado la conexión entre el backend y una base de datos PostgreSQL alojada en Railway utilizando Prisma 7.
+  En este reto he configurado Prisma 7 para PostgreSQL en Railway y el modelo `Question`.
 
-  He configurado Prisma para trabajar con PostgreSQL y he creado el modelo `Question`, que contiene:
-
-  - `id`: identificador de la pregunta.
-  - `statement`: texto de la pregunta.
-  - `options`: opciones de respuesta almacenadas como JSON.
-  - `solution`: respuesta correcta.
-
-  También he creado la configuración de Prisma mediante `prisma.config.ts`, he generado la migración inicial y la he aplicado correctamente sobre PostgreSQL.
-
-  Además, he creado un archivo `prisma/seed.ts` para introducir preguntas de prueba en la base de datos.
+  El modelo contiene `id`, `statement`, `options` y `solution`. `solution` es un índice de base cero (0–3), igual que `respuestaCorrecta` en el contrato de la API.
+  El cliente compartido está en `src/lib/prisma.ts`; el seed está en `src/lib/seed.ts`.
 
 - Conceptos y explicación propia:
 
-  Prisma es un ORM que permite trabajar con bases de datos utilizando modelos y TypeScript en lugar de escribir todas las consultas SQL directamente.
+  `schema.prisma` describe el modelo; una migración contiene SQL versionado que modifica la estructura PostgreSQL. `prisma generate` crea el cliente TypeScript y no cambia la base. El seed inserta datos.
+  `PrismaClient` expone las consultas del modelo en TypeScript; `PrismaPg` conecta ese cliente con PostgreSQL usando el driver `pg`.
+  El cliente centralizado construye `PrismaClient` con `PrismaPg` y `DATABASE_URL`. Desde el PC se requiere el endpoint público de Railway; la dirección privada `*.railway.internal` se usa para comunicación entre servicios en Railway.
 
-  En este reto he aprendido que `schema.prisma` define la estructura de los modelos que queremos tener en la base de datos, mientras que las migraciones permiten aplicar esos cambios realmente sobre PostgreSQL.
-
-  También he aprendido que el archivo `seed.ts` sirve para introducir datos iniciales o de prueba en la base de datos.
-
-  En Prisma 7, para conectarnos a PostgreSQL desde el código hemos utilizado `@prisma/adapter-pg`, que permite crear el cliente de Prisma utilizando el driver de PostgreSQL.
-
-  La estructura principal que he utilizado es:
-
-  `schema.prisma` → define los modelos.
-
-  `prisma.config.ts` → configura Prisma y utiliza `DATABASE_URL`.
-
-  `prisma/migrations/` → contiene los cambios de estructura de la base de datos.
-
-  `src/lib/seed.ts` → introduce datos de prueba.
-
-  `src/lib/prisma.ts` → centraliza el cliente de Prisma utilizado por la aplicación.
+  El seed hace `findFirst` para buscar por `statement`; `await` espera cada consulta, `continue` omite la inserción si ya existe y `$disconnect` cierra el cliente al terminar. Si se cambia el enunciado, la búsqueda ya no lo reconoce y puede insertar otra pregunta. Si se mantienen iguales el enunciado pero se cambian opciones o solución, este seed no actualiza esos campos.
 
 - Pruebas y resultados:
 
-  He comprobado que la conexión con PostgreSQL funciona correctamente y que Prisma puede comunicarse con la base de datos de Railway.
-
-  La migración inicial se ha creado y aplicado correctamente.
-
-  También he comprobado el estado de las migraciones mediante:
-
-  `npx prisma migrate status`
-
-  El resultado final indica que la base de datos está actualizada y que no existen migraciones pendientes.
-
-  El seed se ha ejecutado correctamente mediante:
-
-  `npm run seed`
-
-  También lo he ejecutado una segunda vez para comprobar que no se duplican las preguntas existentes.
-
-  Finalmente, he comprobado el proyecto mediante:
-
-  `npm run typecheck`
-
-  `npm run build`
-
-  Ambas comprobaciones han terminado correctamente.
+  El tutor confirmó en el commit revisado que `prisma validate` pasa y que, después de `prisma generate`, `npm run typecheck` y `npm run build` pasan; también confirmó que las rutas y Swagger siguen funcionando.
+  En esta actualización también pasaron `npm run db:generate`, `npx prisma validate`, `npm run typecheck` y `npm run build`.
+  La base consultada previamente en `production` tenía la migración inicial aplicada y cero preguntas. Ese resultado no acredita el estado de la base de prácticas ni los conteos del seed.
+  Pendiente de registrar con resultados reales en la base de prácticas: conteo inicial, tras cada una de dos ejecuciones de `npm run seed`, y después de cerrar/reabrir la conexión.
 
 - Error y solución:
 
-  Durante el reto apareció un error al intentar conectar Prisma con PostgreSQL.
-
-  El problema estaba en la URL utilizada en `DATABASE_URL`. Inicialmente estábamos utilizando una URL privada de Railway, con un dominio interno como `postgres.railway.internal`.
-
-  Esa dirección solo es accesible desde la propia infraestructura de Railway. Al ejecutar Prisma desde nuestro ordenador local, no podía resolver ni acceder a ese dominio y aparecía un error de conexión.
-
-  La solución fue utilizar la URL pública de conexión de PostgreSQL proporcionada por Railway y configurarla correctamente en el archivo `.env` mediante `DATABASE_URL`.
-
-  Después de cambiar la URL, Prisma pudo conectarse correctamente a PostgreSQL y las migraciones, el seed y las comprobaciones finales funcionaron correctamente.
-
-  También apareció un problema inicial al ejecutar el seed porque Prisma 7 requiere utilizar un driver adapter para realizar la conexión. Se solucionó utilizando `@prisma/adapter-pg` y creando `PrismaClient` con `PrismaPg`.
+  Desde el PC, `postgres.railway.internal` no resolvía porque es una dirección privada de Railway. Para el desarrollo local se necesita el dominio/puerto públicos del entorno de prácticas. Prisma 7 también requiere el adaptador `@prisma/adapter-pg` para este cliente.
 
 - Dudas:
 
-  Una de las principales dudas durante el reto fue entender la diferencia entre la URL privada y la URL pública de Railway.
-
-  La URL privada está pensada para que los servicios que se encuentran dentro de Railway puedan comunicarse entre ellos. La URL pública permite realizar la conexión desde nuestro entorno local.
-
-  También tuve dudas sobre la función de las migraciones frente al `schema.prisma`. Finalmente entendí que el esquema define cómo queremos que sea nuestra base de datos y las migraciones son las instrucciones que permiten aplicar esos cambios sobre la base de datos real.
+  En una nota previa se menciona una migración de prueba que se retiró, pero no quedó documentado su nombre ni si llegó a aplicarse. No se puede afirmar que el historial esté reconciliado solo con los archivos actuales. Hay que comparar `prisma/migrations/` con `_prisma_migrations` de cada entorno en modo lectura antes de sacar conclusiones.
 
 - PR y correcciones:
 
-  Durante el desarrollo tuve que corregir la configuración de conexión y adaptar el seed al funcionamiento de Prisma 7.
-
-  También se realizó una prueba de migración para comprobar que el sistema funcionaba correctamente. Después de comprobarla, se eliminó esa modificación de prueba y se dejó únicamente la migración inicial del reto.
-
-  El estado final del proyecto es correcto: PostgreSQL está conectado mediante Railway, Prisma está configurado, la migración inicial está aplicada, el seed funciona correctamente y las comprobaciones de TypeScript y build pasan sin errores.
+  El PR #7 sigue abierto hacia `develop`. La revisión del tutor sigue pendiente; no empezar el reto 07.
 
 ## 07 · Guarda las preguntas de verdad
 

@@ -12,6 +12,10 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc",
     "start": "node --env-file-if-exists=.env dist/server.js",
+    "db:generate": "prisma generate",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:status": "prisma migrate status",
+    "db:studio": "prisma studio",
     "seed": "tsx src/lib/seed.ts"
   },
   "dependencies": {
