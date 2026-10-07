@@ -207,8 +207,10 @@ app.get("/api/questions", async (_req, res) => {
  *         required: true
  *         description: ID de la pregunta.
  *         schema:
- *           type: string
- *         example: "1"
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 2147483647
+ *         example: 1
  *     responses:
  *       200:
  *         description: Pregunta encontrada
@@ -396,8 +398,10 @@ app.post("/api/questions", async (req, res) => {
  *         required: true
  *         description: ID de la pregunta.
  *         schema:
- *           type: string
- *         example: "1"
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 2147483647
+ *         example: 1
  *     requestBody:
  *       required: true
  *       content:
@@ -515,7 +519,7 @@ app.put("/api/questions/:id", async (req, res) => {
       error.code === "P2025"
     ) {
       return res.status(404).json({
-        error: { 
+        error: {
           code: "QUESTION_NOT_FOUND",
           message: "Pregunta no encontrada",
         },
@@ -537,8 +541,10 @@ app.put("/api/questions/:id", async (req, res) => {
  *         required: true
  *         description: ID de la pregunta.
  *         schema:
- *           type: string
- *         example: "1"
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 2147483647
+ *         example: 1
  *     responses:
  *       204:
  *         description: Pregunta eliminada correctamente

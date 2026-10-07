@@ -17,12 +17,13 @@
 ## Comprueba tu entrega
 
 - [x] Todo el CRUD usa PostgreSQL y respeta los estados HTTP de los retos anteriores.
-- [x] Crear y reiniciar el backend conserva la pregunta. Editar y volver a consultar devuelve los cambios actualizados.
-- [x] Eliminar sigue eliminado después de reiniciar. DELETE devolvió 204 y GET posterior y tras reiniciar devolvió 404.
+- [ ] Persistencia verificada contra Railway: crear o editar, reiniciar el backend y volver a consultar conserva los cambios.
+- [ ] Eliminación verificada contra Railway: eliminar, reiniciar el backend y confirmar que sigue eliminado.
 - [x] Un ID inexistente da 404; el fallo de conexión devuelve 500 `INTERNAL_SERVER_ERROR`, no lista vacía ni éxito.
+- [x] La validación de ID compartida rechaza valores fuera del rango `1–2147483647` en GET, PUT y DELETE.
 - [x] Las respuestas siguen ocultando la solución y el seed está disponible para preparar la práctica.
-- [x] `npm run typecheck` y `npm run build` pasan; comprobaciones previas de GET, POST, PUT y DELETE realizadas con Swagger.
-- [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
+- [x] `npm run typecheck` y `npm run build` pasan; comprobaciones de rutas realizadas con Thunder Client.
+- [ ] He actualizado los registros, completado la descripción del PR y cambiado su base a `develop`, sin hacer merge.
 
 ## Demostración al tutor
 
@@ -38,21 +39,24 @@ Usa los tipos y el autocompletado del cliente generado. No dupliques a mano todo
 
 ## Registro de entrega y revisión
 
-Estado: **Pruebas y comprobaciones técnicas completadas**. Pendiente únicamente el commit y la apertura del PR por parte del alumno; la aprobación formal corresponde al tutor.
+Estado: **Correcciones técnicas comprobadas localmente; revisión pendiente**. El PR y el commit existen. Falta confirmar la persistencia real contra Railway, completar los datos del PR, cambiar su base a `develop` y subir las correcciones a la misma rama.
 
-- PR y commit revisado: pendiente; el alumno realizará el commit y abrirá el PR hacia `develop`.
+- PR y commit: rama `reto/07-crud-persistente`, commit `1090c67`; el PR existente debe cambiar su base de `main` a `develop`. Añadir número y enlace al completar su descripción.
 - Pruebas correctas (petición/acción y resultado):
-  - Swagger GET de lista y GET por ID válido → respuestas correctas.
-  - POST de pregunta temporal → `201`; body con `id`, `enunciado` y `opciones`, sin solución.
-  - Tras reiniciar el backend, GET de la pregunta creada → se conservó en PostgreSQL.
-  - PUT de la pregunta temporal → `200`; GET posterior devolvió los datos actualizados.
-  - DELETE de la pregunta temporal → `204 No Content`; GET posterior y tras reiniciar el backend → `404`.
+  - Thunder Client GET `/api/questions/0` → `400 VALIDATION_ERROR`.
+  - Thunder Client GET `/api/questions/2147483648` → `400 VALIDATION_ERROR`.
+  - Thunder Client GET `/api/questions/2147483647` → `404 QUESTION_NOT_FOUND`; ID dentro del rango, pero inexistente.
+  - Thunder Client GET `/api/questions/1` → `200`; respuesta sin `respuestaCorrecta`.
+  - Thunder Client PUT `/api/questions/0` con body válido → `400 VALIDATION_ERROR`; no se modificaron datos.
+  - Thunder Client DELETE `/api/questions/2147483648` → `400 VALIDATION_ERROR`; no se eliminaron datos.
+  - Pruebas locales anteriores de POST (`201`), PUT (`200`) y DELETE (`204`) quedaron anotadas; las verificaciones con consultas simuladas no demuestran persistencia real en Railway.
 - Pruebas inválidas/fallos:
   - GET con ID no numérico → `400`.
   - GET y PUT con ID numérico inexistente → `404`; PUT responde `QUESTION_NOT_FOUND`.
   - Con una URL de PostgreSQL temporalmente inválida, GET de lista → `500 INTERNAL_SERVER_ERROR`, no éxito ni lista vacía. Prueba HTTP local; no se modificó `.env`.
 - Comandos y resultados: `npm run typecheck` → correcto; `npm run build` → correcto.
-- Dudas o correcciones: ninguna pendiente de las pruebas técnicas realizadas.
+- Persistencia tras reiniciar el backend contra la base real de Railway: pendiente de documentar con la acción realizada y el resultado observado.
+- Dudas o correcciones: cambiar la base del PR a `develop`, actualizar su descripción, subir las correcciones y confirmar persistencia real.
 - Revisión y aprobación del tutor: pendiente.
 - Merge en `develop`: pendiente.
 

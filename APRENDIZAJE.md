@@ -229,13 +229,17 @@ En cada reto anota:
 - Pruebas y resultados:
   - `npm run typecheck` → correcto.
   - `npm run build` → correcto.
-  - Swagger: GET de lista y por ID → correctos; ID no numérico → 400; ID numérico inexistente → 404.
-  - Swagger: POST de pregunta temporal → 201; respuesta con `id`, `enunciado` y `opciones`, sin solución.
-  - Se reinició el backend y GET de la pregunta temporal → seguía presente con los mismos datos.
-  - PUT de la pregunta temporal → 200; GET posterior mostró el enunciado y las opciones actualizados en PostgreSQL.
-  - DELETE de la pregunta temporal → 204 sin body; GET posterior → 404. Tras reiniciar el backend, GET del mismo ID siguió devolviendo 404.
+  - En pruebas locales con consultas simuladas: GET de lista y por ID respondieron correctamente; POST de pregunta temporal → 201 con `id`, `enunciado` y `opciones`, sin solución; PUT → 200; DELETE → 204 y GET posterior → 404.
+  - Esas pruebas simuladas no verifican que los cambios persistan en Railway tras reiniciar el backend. La comprobación contra la base real de desarrollo queda pendiente.
   - PUT con ID numérico inexistente → 404 `QUESTION_NOT_FOUND`.
   - Prueba local con `DATABASE_URL` temporal no válida: GET de lista → 500 `INTERNAL_SERVER_ERROR`, no lista vacía ni éxito. No se modificó `.env`.
+  - Thunder Client: GET `/api/questions/0` → 400 `VALIDATION_ERROR`.
+  - Thunder Client: GET `/api/questions/2147483648` → 400 `VALIDATION_ERROR`.
+  - Thunder Client: GET `/api/questions/2147483647` → 404 `QUESTION_NOT_FOUND`; el ID está dentro del rango, pero no existe.
+  - Thunder Client: GET `/api/questions/1` → 200; devuelve la pregunta sin `respuestaCorrecta`.
+  - Thunder Client: PUT `/api/questions/0` con un body válido → 400 `VALIDATION_ERROR`; no se modificaron datos.
+  - Thunder Client: DELETE `/api/questions/2147483648` → 400 `VALIDATION_ERROR`; no se eliminaron datos.
+  - Tras las correcciones de validación, `npm run typecheck` → correcto y `npm run build` → correcto.
 
 - Error y solución:
   Durante el cambio de POST quedó código antiguo de memoria duplicado y un cierre de ruta fuera de lugar; se reemplazó la ruta completa por una llamada `prisma.question.create`. Durante PUT, `res.json` tenía propiedades sin envolver en un objeto; se corrigió la sintaxis. En la prueba de conexión, se pegaron comandos de PowerShell en el editor por error; se retiraron de `app.ts` y el typecheck volvió a pasar.
@@ -244,7 +248,7 @@ En cada reto anota:
   Al principio me surgió la duda de cómo distinguir un ID inexistente de un fallo de conexión con la base de datos. Quedó resuelta: el ID inexistente responde 404 y los errores de conexión se propagan al middleware, que responde 500.
 
 - PR y correcciones:
-  Rama `reto/07-crud-persistente`. Cambios sin commit; el alumno realizará el commit y abrirá el PR cuando termine las comprobaciones.
+  Rama `reto/07-crud-persistente`; el commit `1090c67` y el PR ya existen. El tutor solicitó cambiar la base del PR a `develop`, corregir la validación del rango del ID, ampliar las pruebas y completar los registros. Correcciones actuales pendientes de subir a la misma rama y PR; aprobación y merge pendientes.
 
 ## 08 · Organiza el backend
 
