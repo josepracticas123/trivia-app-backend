@@ -1,5 +1,4 @@
 import "dotenv/config";
-
 import { prisma } from "./prisma.js";
 
 const questions = [
@@ -33,11 +32,11 @@ const questions = [
 // Funcion asincrona
 async function main() {
 
-  // recorremos todas la spreguntas qu ehay en el array de questions
+  // Recorremos todas las preguntas que hay en el array de questions
   for (const question of questions) {
 
-    // Comprobamos que si ya existen
-    const existingQuestion = await prisma.question.findFirst({
+    // Comprobamos que si ya existen, las preguntas y esperamos la respuesta
+    const existingQuestion = await prisma.question.findFirst({ // buscamos la fregunta con findFirst.
       where: {
         statement: question.statement,
       },
@@ -47,7 +46,7 @@ async function main() {
       console.log(`Ya existe: ${question.statement}`);
       continue;
     }
-  // Si salta el if, inserta una nueva pregunta utiliazndo los datos de question.
+  // Si salta el if, inserta/ crea una nueva pregunta utiliazndo los datos de question.
     await prisma.question.create({
       data: question,
     });

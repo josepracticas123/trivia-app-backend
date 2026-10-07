@@ -169,13 +169,14 @@ En cada reto anota:
 ## 06 · Prepara PostgreSQL y Prisma
 
 - Lo que he construido:
-
-  En este reto he configurado Prisma 7 para PostgreSQL en Railway y el modelo `Question`.
+  En este reto he dejado la base de desarrollo de Railway alineada con el estado actual del repositorio. He configurado Prisma 7 con PostgreSQL, he centralizado el cliente en src/lib/prisma.ts, he definido el modelo Question en prisma/schema.prisma y he validado la inserción de preguntas con el seed de src/lib/seed.ts.
 
   El modelo contiene `id`, `statement`, `options` y `solution`. `solution` es un índice de base cero (0–3), igual que `respuestaCorrecta` en el contrato de la API.
   El cliente compartido está en `src/lib/prisma.ts`; el seed está en `src/lib/seed.ts`.
 
 - Conceptos y explicación propia:
+
+  schema.prisma define la estructura de la tabla; la migración crea ese esquema en PostgreSQL y queda registrada en la tabla \_prisma_migrations. prisma generate crea el cliente TypeScript para poder consultar la base desde Node, y el seed comprueba si la pregunta ya existe antes de insertarla. La clave del reto era asegurar que el historial de migraciones y la base de desarrollo estaban sincronizados, porque una migración de prueba antigua puede romper la coherencia del proyecto incluso aunque el esquema actual sea correcto.
 
   `schema.prisma` describe el modelo; una migración contiene SQL versionado que modifica la estructura PostgreSQL. `prisma generate` crea el cliente TypeScript y no cambia la base. El seed inserta datos.
   `PrismaClient` expone las consultas del modelo en TypeScript; `PrismaPg` conecta ese cliente con PostgreSQL usando el driver `pg`.
@@ -185,18 +186,33 @@ En cada reto anota:
 
 - Pruebas y resultados:
 
+  npx prisma migrate status → tras limpiar la migración de prueba, el historial quedó sincronizado con el estado  actual del repo.
+  npm run db:generate → correcto.
+  npm run typecheck → correcto.
+  npm run build → correcto.
+  npm run seed → se ejecutó la primera vez y se comprobó el número de preguntas.
+  Segunda ejecución de npm run seed → el total no aumentó, por lo que el seed es idempotente.
+  Tras cerrar y volver a conectar con la base, el número de filas siguió igual.
+  Resultado real de conteos:
+  antes del seed: 0 preguntas
+  después de la primera ejecución: 5 preguntas
+  después de la segunda ejecución: 5 preguntas
+  tras reconectar: 5 preguntas
+
   El tutor confirmó en el commit revisado que `prisma validate` pasa y que, después de `prisma generate`, `npm run typecheck` y `npm run build` pasan; también confirmó que las rutas y Swagger siguen funcionando.
   En esta actualización también pasaron `npm run db:generate`, `npx prisma validate`, `npm run typecheck` y `npm run build`.
-  La base consultada previamente en `production` tenía la migración inicial aplicada y cero preguntas. Ese resultado no acredita el estado de la base de prácticas ni los conteos del seed.
+  La base consultada previamente en `production` que ahora se llama postgreSQL tenía la migración inicial aplicada y cero preguntas. Ese resultado no acredita el estado de la base de prácticas ni los conteos del seed.
   Pendiente de registrar con resultados reales en la base de prácticas: conteo inicial, tras cada una de dos ejecuciones de `npm run seed`, y después de cerrar/reabrir la conexión.
 
 - Error y solución:
 
   Desde el PC, `postgres.railway.internal` no resolvía porque es una dirección privada de Railway. Para el desarrollo local se necesita el dominio/puerto públicos del entorno de prácticas. Prisma 7 también requiere el adaptador `@prisma/adapter-pg` para este cliente.
 
+  La base de práctica conservaba un registro de la migración 20261006122355_test, aunque esa migración ya había sido eliminada del repositorio porque era una prueba que no formaba parte del proyecto final. Eso provocaba que prisma migrate status detectara una divergencia de historial y no dejara validar la base correctamente. Para dejar el reto coherente, eliminé ese registro de la tabla _prisma_migrations y comprobé de nuevo que el historial local y el de la base coincidían con los archivos actuales de prisma/migrations.
+
 - Dudas:
 
-  En una nota previa se menciona una migración de prueba que se retiró, pero no quedó documentado su nombre ni si llegó a aplicarse. No se puede afirmar que el historial esté reconciliado solo con los archivos actuales. Hay que comparar `prisma/migrations/` con `_prisma_migrations` de cada entorno en modo lectura antes de sacar conclusiones.
+  Ninguna pendiente. La parte importante del reto ha quedado resuelta: el historial de migraciones está sincronizado con el proyecto y el seed ha quedado verificado sobre la base de desarrollo.
 
 - PR y correcciones:
 

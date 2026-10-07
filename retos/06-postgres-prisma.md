@@ -16,14 +16,14 @@
 
 ## Comprueba tu entrega
 
-- [ ] PostgreSQL está disponible en Railway y Prisma se conecta desde mi PC usando la URL pública de la base exclusiva de desarrollo.
-- [ ] Las migraciones versionadas preparan una base de desarrollo vacía y el historial coincide con `_prisma_migrations`.
-- [ ] El seed crea al menos cinco preguntas y ejecutar dos veces no las duplica; anotar los conteos antes, después de cada ejecución y tras reconectar.
-- [ ] Cerrar y volver a abrir la conexión desde mi PC conserva las preguntas guardadas en la base de desarrollo.
-- [ ] Las credenciales reales y el cliente generado no se suben; esquema, configuración necesaria y todas las migraciones sí.
-- [ ] El README recoge versiones, preparación de Railway, configuración de `.env`, comandos y cómo inspeccionar los datos con Prisma Studio o la vista de datos de Railway.
-- [ ] `npm ci`, `npm run db:generate`, `npm run typecheck` y `npm run build` pasan; las rutas y Swagger siguen funcionando.
-- [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
+- [x] PostgreSQL está disponible en Railway y Prisma se conecta desde mi PC usando la URL pública de la base exclusiva de desarrollo.
+- [x] Las migraciones versionadas preparan una base de desarrollo vacía y el historial coincide con `_prisma_migrations`.
+- [x] El seed crea al menos cinco preguntas y ejecutar dos veces no las duplica; anotar los conteos antes, después de cada ejecución y tras reconectar.
+- [x] Cerrar y volver a abrir la conexión desde mi PC conserva las preguntas guardadas en la base de desarrollo.
+- [x] Las credenciales reales y el cliente generado no se suben; esquema, configuración necesaria y todas las migraciones sí.
+- [x] El README recoge versiones, preparación de Railway, configuración de `.env`, comandos y cómo inspeccionar los datos con Prisma Studio o la vista de datos de Railway.
+- [x] `npm ci`, `npm run db:generate`, `npm run typecheck` y `npm run build` pasan; las rutas y Swagger siguen funcionando.
+- [x] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
 
