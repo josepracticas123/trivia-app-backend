@@ -176,9 +176,7 @@ En cada reto anota:
 
 - Conceptos y explicación propia:
 
-  schema.prisma define la estructura de la tabla; la migración crea ese esquema en PostgreSQL y queda registrada en la tabla \_prisma_migrations. prisma generate crea el cliente TypeScript para poder consultar la base desde Node, y el seed comprueba si la pregunta ya existe antes de insertarla. La clave del reto era asegurar que el historial de migraciones y la base de desarrollo estaban sincronizados, porque una migración de prueba antigua puede romper la coherencia del proyecto incluso aunque el esquema actual sea correcto.
-
-  `schema.prisma` describe el modelo; una migración contiene SQL versionado que modifica la estructura PostgreSQL. `prisma generate` crea el cliente TypeScript y no cambia la base. El seed inserta datos.
+  `schema.prisma` describe el modelo; una migración contiene SQL versionado que modifica la estructura PostgreSQL y su aplicación se registra en `_prisma_migrations`. `prisma generate` crea el cliente TypeScript y no cambia la base. El seed inserta datos y no cambia el esquema.
   `PrismaClient` expone las consultas del modelo en TypeScript; `PrismaPg` conecta ese cliente con PostgreSQL usando el driver `pg`.
   El cliente centralizado construye `PrismaClient` con `PrismaPg` y `DATABASE_URL`. Desde el PC se requiere el endpoint público de Railway; la dirección privada `*.railway.internal` se usa para comunicación entre servicios en Railway.
 
@@ -186,33 +184,31 @@ En cada reto anota:
 
 - Pruebas y resultados:
 
-  npx prisma migrate status → tras limpiar la migración de prueba, el historial quedó sincronizado con el estado  actual del repo.
-  npm run db:generate → correcto.
-  npm run typecheck → correcto.
-  npm run build → correcto.
-  npm run seed → se ejecutó la primera vez y se comprobó el número de preguntas.
-  Segunda ejecución de npm run seed → el total no aumentó, por lo que el seed es idempotente.
-  Tras cerrar y volver a conectar con la base, el número de filas siguió igual.
-  Resultado real de conteos:
-  antes del seed: 0 preguntas
-  después de la primera ejecución: 5 preguntas
-  después de la segunda ejecución: 5 preguntas
-  tras reconectar: 5 preguntas
+  En la base de prácticas confirmada:
+  - `npm run db:migrate:status` → 2 migraciones encontradas; `Database schema is up to date!`.
+  - Consulta de `_prisma_migrations` → `20261006112344_init` y `20261006164700_solution_text_to_index`; ambas tienen `finished_at` y no están marcadas como revertidas.
+  - Consulta de `information_schema.columns` para `Question` → `id integer NOT NULL`, `statement text NOT NULL`, `options jsonb NOT NULL`, `solution integer NOT NULL`.
+  - `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` → `No difference detected`.
+  - Conteos con `SELECT count(*)::integer AS questions FROM "Question"`: antes del seed, 5; después de la primera ejecución de `npm run seed`, 5; después de la segunda ejecución, 5; tras cerrar la conexión y consultar de nuevo, 5. Ambas ejecuciones indicaron que las cinco preguntas ya existían.
+  - `npx prisma validate` → esquema válido.
 
-  El tutor confirmó en el commit revisado que `prisma validate` pasa y que, después de `prisma generate`, `npm run typecheck` y `npm run build` pasan; también confirmó que las rutas y Swagger siguen funcionando.
-  En esta actualización también pasaron `npm run db:generate`, `npx prisma validate`, `npm run typecheck` y `npm run build`.
-  La base consultada previamente en `production` que ahora se llama postgreSQL tenía la migración inicial aplicada y cero preguntas. Ese resultado no acredita el estado de la base de prácticas ni los conteos del seed.
-  Pendiente de registrar con resultados reales en la base de prácticas: conteo inicial, tras cada una de dos ejecuciones de `npm run seed`, y después de cerrar/reabrir la conexión.
+  Según la revisión del tutor del commit `798f829`, `prisma generate`, `npm run typecheck`, `npm run build` y las comprobaciones básicas de rutas y Swagger pasaban. En esta actualización no volví a ejecutar esas pruebas.
 
 - Error y solución:
 
   Desde el PC, `postgres.railway.internal` no resolvía porque es una dirección privada de Railway. Para el desarrollo local se necesita el dominio/puerto públicos del entorno de prácticas. Prisma 7 también requiere el adaptador `@prisma/adapter-pg` para este cliente.
 
-  La base de práctica conservaba un registro de la migración 20261006122355_test, aunque esa migración ya había sido eliminada del repositorio porque era una prueba que no formaba parte del proyecto final. Eso provocaba que prisma migrate status detectara una divergencia de historial y no dejara validar la base correctamente. Para dejar el reto coherente, eliminé ese registro de la tabla _prisma_migrations y comprobé de nuevo que el historial local y el de la base coincidían con los archivos actuales de prisma/migrations.
+  La migración temporal `20261006122355_test` intentaba ejecutar `ALTER TABLE "Question" ADD COLUMN "test" TEXT NOT NULL;`, sin valor por defecto. Prisma advertía que añadir esa columna obligatoria no era posible si `Question` ya tenía filas; la migración falló al intentar aplicarse sobre la tabla poblada y no quedó aplicada correctamente. Por eso el campo `test` no forma parte del esquema final.
+
+  Después se borraron los archivos de esa migración de VS Code/carpeta y no se subieron al repositorio remoto, mientras el registro del intento seguía en `_prisma_migrations`. Eso produjo una segunda incidencia, distinta del error SQL: Prisma encontraba una migración registrada en la base cuyos archivos ya no estaban en `prisma/migrations` y no podía reconciliar ambos historiales. Para quitar ese bloqueo se borró manualmente de la base la fila correspondiente.
+
+  Borrar esa fila quitó únicamente el registro del historial; no es un mecanismo para revertir SQL. La columna no aparece en la estructura actual: `migrate diff` no detecta diferencias con `schema.prisma`, y `Question` tiene solo las cuatro columnas del modelo. El SQL recuperado confirma que la migración consistía en una única instrucción para añadir `test`; el error al aplicarla explica por qué no se incorporó a la tabla poblada. Si vuelve a existir una discrepancia, se debe inspeccionar el esquema real y acordar cualquier reparación con el tutor, sin borrar filas del historial para silenciarla.
+
+  Comprobación actual de la base de prácticas: solo están registradas como finalizadas `20261006112344_init` y `20261006164700_solution_text_to_index`; la tabla `Question` existe con las cuatro columnas y tipos descritos arriba, no se detectan diferencias frente a `schema.prisma`, y las únicas tablas del esquema `public` son `Question` y `_prisma_migrations`. El SQL recuperado de la migración de prueba confirma que intentaba añadir `test TEXT NOT NULL`; la estructura actual demuestra que esa columna no existe ahora.
 
 - Dudas:
 
-  Ninguna pendiente. La parte importante del reto ha quedado resuelta: el historial de migraciones está sincronizado con el proyecto y el seed ha quedado verificado sobre la base de desarrollo.
+  La migración falló porque intentaba añadir `test TEXT NOT NULL` a una tabla poblada sin valor por defecto. Después, borrar sus archivos dejando el registro creó una discrepancia de historial; se quitó manualmente esa fila. La comparación actual confirma que el esquema está alineado. Las correcciones documentales de esta revisión siguen pendientes de commit y push al PR. No hacer cambios de reparación sin acordarlos primero con el tutor.
 
 - PR y correcciones:
 
