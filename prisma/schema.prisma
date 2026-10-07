@@ -1,0 +1,21 @@
+// Aquí definimos como queremos que sea al estructra de la tabla y de la bbdd desde punto de vista de prisma.
+
+// se utiliza para comunicarnos con la bbdd de sde prisma.
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+// definimos a prisma la fuente de datos que es postgre
+datasource db {
+  provider = "postgresql"
+}
+
+// Tipo de tabla y columnas que tendrá
+model Question {
+  id        Int    @id @default(autoincrement())
+  statement String
+  options   Json
+  solution  Int
+}
+

@@ -52,13 +52,13 @@ En un clon nuevo:
 
 ```bash
 npm ci
-cp .env.example .env
+Copy-Item .env.example .env
 npm run dev
 ```
 
 Abre <http://localhost:3000/>. Verás un JSON de bienvenida. El servidor se detiene con `Ctrl+C`. `.env` contiene la configuración local; está ignorado por Git. `.env.example` es la referencia compartida y no debe contener secretos reales.
 
-La base **no tiene `/health` todavía**: lo añades en el reto 01. El puerto por defecto es 3000; al cambiar `.env`, reinicia el proceso. No compartas ni subas contraseñas, tokens o archivos `.env`.
+El endpoint `/health` ya está disponible. El puerto por defecto es 3000; al cambiar `.env`, reinicia el proceso. No compartas ni subas contraseñas, tokens o archivos `.env`.
 
 ### Comandos de la base
 
@@ -71,8 +71,50 @@ La base **no tiene `/health` todavía**: lo añades en el reto 01. El puerto por
 | `npm run typecheck` | Comprueba tipos sin generar archivos |
 | `npm run build` | Comprueba y compila `src/` a `dist/` |
 | `npm start` | Ejecuta `dist/server.js`; necesita una compilación previa |
+| `npm run db:generate` | Genera Prisma Client desde `schema.prisma`; hace falta tras `npm ci` y después de cambios al esquema |
+| `npm run db:migrate:status` | Consulta si el historial local de migraciones coincide con la base indicada por `DATABASE_URL`; no aplica cambios |
+| `npm run db:migrate:dev` | Crea y aplica migraciones de desarrollo. Cambia tablas; ejecútalo solo contra la base de prácticas acordada |
+| `npm run seed` | Inserta las preguntas de práctica que aún no existan, buscando por enunciado |
+| `npm run db:studio` | Abre Prisma Studio local, normalmente en `http://localhost:5555`, para inspeccionar y editar datos |
 
-`tsx` ejecuta el código, pero no sustituye la comprobación de tipos. No hay `lint`, `test` ni scripts de DB todavía: se incorporarán cuando exista una herramienta y una comprobación real detrás. Antes de entregar, ejecuta siempre `typecheck` y `build` y las pruebas que ya se hayan incorporado.
+`tsx` ejecuta el código, pero no sustituye la comprobación de tipos. No hay scripts `lint` ni `test` todavía. Antes de entregar, ejecuta siempre `typecheck` y `build` y las pruebas que ya se hayan incorporado.
+
+### PostgreSQL y Prisma (Reto 06)
+
+Prisma CLI, Prisma Client y el adaptador PostgreSQL están declarados en `package.json` en la serie **7.10.0** (`prisma`, `@prisma/client` y `@prisma/adapter-pg`); `pg` está en la serie **8.23.1**. Comprueba las versiones exactas instaladas con `npm ls prisma @prisma/client @prisma/adapter-pg pg --depth=0`. El proyecto requiere Node **24.x**.
+
+Para configurar una instalación local:
+
+1. En Railway selecciona el servicio PostgreSQL del entorno de **desarrollo/prácticas** y copia su `DATABASE_PUBLIC_URL`. Desde el PC se usa la URL pública; no uses `*.railway.internal`, que es para servicios comunicándose dentro de Railway.
+2. Copia `.env.example` a `.env` y coloca el valor completo de la URL en `DATABASE_URL`. No incluyas credenciales reales en Git, documentación, capturas ni mensajes. Antes de cualquier operación que escriba, comprueba el host y entorno destino; nunca uses la base de producción para prácticas.
+3. Instala dependencias y genera el cliente:
+
+   ```powershell
+   npm ci
+   Copy-Item .env.example .env
+   # Añade DATABASE_URL en .env con la URL pública del entorno BBDD.
+   npm run db:generate
+   ```
+
+   Prisma 7 no genera automáticamente Prisma Client al aplicar migraciones. Ejecuta `db:generate` tras una instalación limpia y después de cambiar el esquema.
+4. Comprueba primero el destino y el estado sin modificar la base:
+
+   ```powershell
+   npm run db:migrate:status
+   ```
+
+5. Solo con el host de la base de prácticas confirmado, crea/aplica las migraciones de desarrollo y carga las preguntas:
+
+   ```powershell
+   npm run db:migrate:dev
+   npm run db:generate
+   npm run seed
+   ```
+
+   `migrate dev` puede requerir que PostgreSQL permita crear una shadow database. Si no es posible, configura una shadow database vacía separada siguiendo la guía de la versión de Prisma; nunca uses producción como shadow. La migración de datos que cambia `Question.solution` de texto a índice convierte cada respuesta al índice correspondiente dentro de `options` y falla si encuentra una respuesta que no coincide con ninguna opción.
+6. Abre `npm run db:studio` o la vista de datos de Railway para inspeccionar `Question` y `_prisma_migrations`. Para verificar la idempotencia del seed, cuenta filas antes, ejecútalo dos veces, vuelve a contar y registra los resultados reales. Cerrar y reabrir Studio no borra los datos persistidos en PostgreSQL.
+
+El modelo está en `prisma/schema.prisma`, el historial reproducible en `prisma/migrations/` y el seed en `src/lib/seed.ts`. El cliente Prisma local y los comandos CLI leen `DATABASE_URL`; las rutas de la API siguen usando datos en memoria hasta el reto 07. Un backend alojado en Railway puede usar la URL privada de PostgreSQL del mismo entorno. La CLI `migrate status` solo inspecciona el historial; `migrate dev` cambia el esquema y `seed` inserta datos.
 
 ## Estructura y responsabilidades
 
@@ -99,7 +141,7 @@ TriviaApp_Backend/
     ├── schemas/            # Validaciones de datos recibidos
     ├── types/              # Tipos e interfaces propios
     ├── data/               # Datos en memoria de los primeros retos
-    ├── lib/                # Cliente Prisma y configuración compartida
+    ├── lib/                # Cliente Prisma y seed
     ├── docs/               # Configuración OpenAPI/Swagger
     └── sockets/            # Conexión, autorización y eventos desde el reto 18
 ```
@@ -270,4 +312,3 @@ Emparejamiento automático, temporizadores, chat, recuperación de contraseña, 
 - [Socket.IO](https://socket.io/docs/v4/).
 
 Empieza por [01 · Arranca tu backend](retos/01-primer-servidor.md) después de que el tutor prepare `develop`.
-

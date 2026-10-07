@@ -168,12 +168,51 @@ En cada reto anota:
 
 ## 06 · Prepara PostgreSQL y Prisma
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- Lo que he construido:
+  En este reto he dejado la base de desarrollo de Railway alineada con el estado actual del repositorio. He configurado Prisma 7 con PostgreSQL, he centralizado el cliente en src/lib/prisma.ts, he definido el modelo Question en prisma/schema.prisma y he validado la inserción de preguntas con el seed de src/lib/seed.ts.
+
+  El modelo contiene `id`, `statement`, `options` y `solution`. `solution` es un índice de base cero (0–3), igual que `respuestaCorrecta` en el contrato de la API.
+  El cliente compartido está en `src/lib/prisma.ts`; el seed está en `src/lib/seed.ts`.
+
+- Conceptos y explicación propia:
+
+  `schema.prisma` describe el modelo; una migración contiene SQL versionado que modifica la estructura PostgreSQL y su aplicación se registra en `_prisma_migrations`. `prisma generate` crea el cliente TypeScript y no cambia la base. El seed inserta datos y no cambia el esquema.
+  `PrismaClient` expone las consultas del modelo en TypeScript; `PrismaPg` conecta ese cliente con PostgreSQL usando el driver `pg`.
+  El cliente centralizado construye `PrismaClient` con `PrismaPg` y `DATABASE_URL`. Desde el PC se requiere el endpoint público de Railway; la dirección privada `*.railway.internal` se usa para comunicación entre servicios en Railway.
+
+  El seed hace `findFirst` para buscar por `statement`; `await` espera cada consulta, `continue` omite la inserción si ya existe y `$disconnect` cierra el cliente al terminar. Si se cambia el enunciado, la búsqueda ya no lo reconoce y puede insertar otra pregunta. Si se mantienen iguales el enunciado pero se cambian opciones o solución, este seed no actualiza esos campos.
+
+- Pruebas y resultados:
+
+  En la base de prácticas confirmada:
+  - `npm run db:migrate:status` → 2 migraciones encontradas; `Database schema is up to date!`.
+  - Consulta de `_prisma_migrations` → `20261006112344_init` y `20261006164700_solution_text_to_index`; ambas tienen `finished_at` y no están marcadas como revertidas.
+  - Consulta de `information_schema.columns` para `Question` → `id integer NOT NULL`, `statement text NOT NULL`, `options jsonb NOT NULL`, `solution integer NOT NULL`.
+  - `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` → `No difference detected`.
+  - Conteos con `SELECT count(*)::integer AS questions FROM "Question"`: antes del seed, 5; después de la primera ejecución de `npm run seed`, 5; después de la segunda ejecución, 5; tras cerrar la conexión y consultar de nuevo, 5. Ambas ejecuciones indicaron que las cinco preguntas ya existían.
+  - `npx prisma validate` → esquema válido.
+
+  Según la revisión del tutor del commit `798f829`, `prisma generate`, `npm run typecheck`, `npm run build` y las comprobaciones básicas de rutas y Swagger pasaban. En esta actualización no volví a ejecutar esas pruebas.
+
+- Error y solución:
+
+  Desde el PC, `postgres.railway.internal` no resolvía porque es una dirección privada de Railway. Para el desarrollo local se necesita el dominio/puerto públicos del entorno de prácticas. Prisma 7 también requiere el adaptador `@prisma/adapter-pg` para este cliente.
+
+  La migración temporal `20261006122355_test` intentaba ejecutar `ALTER TABLE "Question" ADD COLUMN "test" TEXT NOT NULL;`, sin valor por defecto. Prisma advertía que añadir esa columna obligatoria no era posible si `Question` ya tenía filas. Como se borró después el registro de la migración y no se conserva la salida original del comando, no se puede confirmar retrospectivamente si llegó a aplicarse; la comprobación actual sí confirma que `test` no forma parte del esquema.
+
+  Después se borraron los archivos de esa migración de VS Code/carpeta y no se subieron al repositorio remoto, mientras el registro del intento seguía en `_prisma_migrations`. Eso produjo una segunda incidencia, distinta del error SQL: Prisma encontraba una migración registrada en la base cuyos archivos ya no estaban en `prisma/migrations` y no podía reconciliar ambos historiales. Para quitar ese bloqueo se borró manualmente de la base la fila correspondiente.
+
+  Borrar esa fila quitó únicamente el registro del historial; no es un mecanismo para revertir SQL. La columna no aparece en la estructura actual: `migrate diff` no detecta diferencias con `schema.prisma`, y `Question` tiene solo las cuatro columnas del modelo. El SQL recuperado confirma que la migración consistía en una única instrucción para añadir `test`; su advertencia explica el posible fallo si se ejecutaba con filas existentes, pero el resultado histórico no se puede verificar ya. Si vuelve a existir una discrepancia, se debe inspeccionar el esquema real y acordar cualquier reparación con el tutor, sin borrar filas del historial para silenciarla.
+
+  Comprobación actual de la base de prácticas: solo están registradas como finalizadas `20261006112344_init` y `20261006164700_solution_text_to_index`; la tabla `Question` existe con las cuatro columnas y tipos descritos arriba, no se detectan diferencias frente a `schema.prisma`, y las únicas tablas del esquema `public` son `Question` y `_prisma_migrations`. El SQL recuperado de la migración de prueba confirma que intentaba añadir `test TEXT NOT NULL`; la estructura actual demuestra que esa columna no existe ahora.
+
+- Dudas:
+
+  La migración intentaba añadir `test TEXT NOT NULL` sin valor por defecto, lo que podía fallar si la tabla ya tenía filas. Al borrarse los archivos dejando el registro se creó una discrepancia de historial; se quitó manualmente esa fila. Como no se conserva el resultado original del intento, no se puede confirmar si llegó a aplicarse; la comparación actual confirma que el esquema está alineado y que `test` no existe ahora. Las correcciones documentales de esta revisión siguen pendientes de commit y push al PR. No hacer cambios de reparación sin acordarlos primero con el tutor.
+
+- PR y correcciones:
+
+  El PR #7 sigue abierto hacia `develop`. La revisión del tutor sigue pendiente; no empezar el reto 07.
 
 ## 07 · Guarda las preguntas de verdad
 
