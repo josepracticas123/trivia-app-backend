@@ -16,12 +16,12 @@
 
 ## Comprueba tu entrega
 
-- [ ] Todo el CRUD usa PostgreSQL y respeta los estados HTTP de los retos anteriores.
-- [ ] Crear o editar, reiniciar el backend y volver a consultar conserva los cambios.
-- [ ] Eliminar sigue eliminado después de reiniciar.
-- [ ] Un ID inexistente da 404; un fallo de conexión no se presenta como lista vacía ni como éxito.
-- [ ] Las respuestas siguen ocultando la solución y el seed sirve para preparar la práctica.
-- [ ] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+- [x] Todo el CRUD usa PostgreSQL y respeta los estados HTTP de los retos anteriores.
+- [x] Crear y reiniciar el backend conserva la pregunta. Editar y volver a consultar devuelve los cambios actualizados.
+- [x] Eliminar sigue eliminado después de reiniciar. DELETE devolvió 204 y GET posterior y tras reiniciar devolvió 404.
+- [x] Un ID inexistente da 404; el fallo de conexión devuelve 500 `INTERNAL_SERVER_ERROR`, no lista vacía ni éxito.
+- [x] Las respuestas siguen ocultando la solución y el seed está disponible para preparar la práctica.
+- [x] `npm run typecheck` y `npm run build` pasan; comprobaciones previas de GET, POST, PUT y DELETE realizadas con Swagger.
 - [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
@@ -38,13 +38,21 @@ Usa los tipos y el autocompletado del cliente generado. No dupliques a mano todo
 
 ## Registro de entrega y revisión
 
-Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
+Estado: **Pruebas y comprobaciones técnicas completadas**. Pendiente únicamente el commit y la apertura del PR por parte del alumno; la aprobación formal corresponde al tutor.
 
-- PR y commit revisado: pendiente.
-- Prueba correcta (petición/acción y resultado): pendiente.
-- Prueba inválida o fallo (petición/acción y resultado): pendiente.
-- Comandos y resultados: pendiente.
-- Dudas o correcciones: pendiente.
+- PR y commit revisado: pendiente; el alumno realizará el commit y abrirá el PR hacia `develop`.
+- Pruebas correctas (petición/acción y resultado):
+  - Swagger GET de lista y GET por ID válido → respuestas correctas.
+  - POST de pregunta temporal → `201`; body con `id`, `enunciado` y `opciones`, sin solución.
+  - Tras reiniciar el backend, GET de la pregunta creada → se conservó en PostgreSQL.
+  - PUT de la pregunta temporal → `200`; GET posterior devolvió los datos actualizados.
+  - DELETE de la pregunta temporal → `204 No Content`; GET posterior y tras reiniciar el backend → `404`.
+- Pruebas inválidas/fallos:
+  - GET con ID no numérico → `400`.
+  - GET y PUT con ID numérico inexistente → `404`; PUT responde `QUESTION_NOT_FOUND`.
+  - Con una URL de PostgreSQL temporalmente inválida, GET de lista → `500 INTERNAL_SERVER_ERROR`, no éxito ni lista vacía. Prueba HTTP local; no se modificó `.env`.
+- Comandos y resultados: `npm run typecheck` → correcto; `npm run build` → correcto.
+- Dudas o correcciones: ninguna pendiente de las pruebas técnicas realizadas.
 - Revisión y aprobación del tutor: pendiente.
 - Merge en `develop`: pendiente.
 

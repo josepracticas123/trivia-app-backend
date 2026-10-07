@@ -216,12 +216,35 @@ En cada reto anota:
 
 ## 07 · Guarda las preguntas de verdad
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- Lo que he construido:
+  He sustituido en `src/app.ts` las operaciones CRUD de preguntas en memoria por consultas Prisma a PostgreSQL. La API conserva los campos públicos `id`, `enunciado` y `opciones`; guarda `respuestaCorrecta` como `solution`, pero no devuelve la solución al cliente.
+
+- Conceptos y explicación propia:
+  `async` permite que una ruta espere consultas asíncronas y `await` espera el resultado de PostgreSQL antes de construir la respuesta HTTP. `findMany` lista, `findUnique` busca por ID, `create` inserta, `update` modifica y `deleteMany` elimina y permite revisar `count` para responder 404 si no encontró una fila.
+
+  Prisma Client da acceso tipado al modelo generado; no crea ni modifica tablas por sí mismo. Las migraciones modifican el esquema de la base y el seed inserta datos de práctica. La base persiste aunque se reinicie el backend porque el backend es solo el cliente que se conecta a PostgreSQL; borrar filas o reiniciar/borrar la base sí elimina los datos.
+
+  Las rutas usan `select` para pedir solo los campos públicos. Después convierten `statement` a `enunciado` y `options` a `opciones`, conservando el contrato de la API sin exponer `solution`.
+
+- Pruebas y resultados:
+  - `npm run typecheck` → correcto.
+  - `npm run build` → correcto.
+  - Swagger: GET de lista y por ID → correctos; ID no numérico → 400; ID numérico inexistente → 404.
+  - Swagger: POST de pregunta temporal → 201; respuesta con `id`, `enunciado` y `opciones`, sin solución.
+  - Se reinició el backend y GET de la pregunta temporal → seguía presente con los mismos datos.
+  - PUT de la pregunta temporal → 200; GET posterior mostró el enunciado y las opciones actualizados en PostgreSQL.
+  - DELETE de la pregunta temporal → 204 sin body; GET posterior → 404. Tras reiniciar el backend, GET del mismo ID siguió devolviendo 404.
+  - PUT con ID numérico inexistente → 404 `QUESTION_NOT_FOUND`.
+  - Prueba local con `DATABASE_URL` temporal no válida: GET de lista → 500 `INTERNAL_SERVER_ERROR`, no lista vacía ni éxito. No se modificó `.env`.
+
+- Error y solución:
+  Durante el cambio de POST quedó código antiguo de memoria duplicado y un cierre de ruta fuera de lugar; se reemplazó la ruta completa por una llamada `prisma.question.create`. Durante PUT, `res.json` tenía propiedades sin envolver en un objeto; se corrigió la sintaxis. En la prueba de conexión, se pegaron comandos de PowerShell en el editor por error; se retiraron de `app.ts` y el typecheck volvió a pasar.
+
+- Dudas:
+  Al principio me surgió la duda de cómo distinguir un ID inexistente de un fallo de conexión con la base de datos. Quedó resuelta: el ID inexistente responde 404 y los errores de conexión se propagan al middleware, que responde 500.
+
+- PR y correcciones:
+  Rama `reto/07-crud-persistente`. Cambios sin commit; el alumno realizará el commit y abrirá el PR cuando termine las comprobaciones.
 
 ## 08 · Organiza el backend
 

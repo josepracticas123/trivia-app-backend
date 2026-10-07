@@ -515,7 +515,7 @@ app.put("/api/questions/:id", async (req, res) => {
       error.code === "P2025"
     ) {
       return res.status(404).json({
-        error: {
+        error: { 
           code: "QUESTION_NOT_FOUND",
           message: "Pregunta no encontrada",
         },
