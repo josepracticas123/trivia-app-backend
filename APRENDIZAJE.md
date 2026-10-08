@@ -252,12 +252,35 @@ En cada reto anota:
 
 ## 08 · Organiza el backend
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- Lo que he construido:
+  He separado las cinco operaciones del CRUD de preguntas en `src/routes/questions.routes.ts`, `src/controllers/question.controller.ts` y `src/services/question.service.ts`. `app.ts` configura Express, conserva la documentación OpenAPI y monta `questionRouter` bajo `/api/questions`. `server.ts` sigue siendo quien abre el puerto.
+
+- Conceptos y explicación propia:
+  Una ruta asocia un método y un camino HTTP con un controlador; por ejemplo, `GET /api/questions/:id` se declara como `questionRouter.get("/:id", getQuestionByIdController)`. El montaje `app.use("/api/questions", questionRouter)` añade el prefijo común. El controlador trabaja con `req` y `res`: valida parámetros o cuerpo, llama al servicio y traduce el resultado a una respuesta HTTP. El servicio recibe datos normales y consulta Prisma, sin importar Express.
+
+  En `GET /api/questions/1`, la petición pasa por el montaje del router, entra en la ruta `/:id`, el controlador valida el ID con Zod y llama a `getQuestionById(1)`. El servicio consulta PostgreSQL con Prisma y devuelve solo `id`, `statement` y `options`; el controlador los presenta como `id`, `enunciado` y `opciones`. Para un evento de Socket.IO se podría reutilizar `getQuestionById(id)`, no el controlador, porque un evento no tiene `req` ni `res`. Esa función no devuelve la solución correcta.
+
+- Pruebas y resultados:
+  - `npm.cmd run typecheck` → correcto.
+  - `npm.cmd run build` → correcto.
+  - Contra el servidor local: `GET /api/questions` → 200; devuelve un array de 5 preguntas con `id`, `enunciado` y `opciones`, sin `respuestaCorrecta`.
+  - `GET /api/questions/1` → 200; devuelve `id`, `enunciado` y `opciones`, sin `respuestaCorrecta`.
+  - En Swagger, POST `/api/questions` con una pregunta temporal válida → 201; GET por el ID devuelto → 200; PUT con datos válidos → 200 y GET posterior confirma el cambio; DELETE → 204 y GET posterior → 404.
+  - `POST /api/questions` con un body inválido → 400 `VALIDATION_ERROR`.
+  - `PUT /api/questions/0` con un body válido → 400 `VALIDATION_ERROR`; el ID inválido se rechaza antes de llamar al servicio.
+  - `DELETE /api/questions/0` → 400 `VALIDATION_ERROR`; el ID inválido se rechaza antes de llamar al servicio.
+  - `GET /docs` → 200 y muestra Swagger UI.
+  - `GET /api/openapi.json` → 200; documenta GET y POST en `/api/questions`, y GET, PUT y DELETE en `/api/questions/{id}`.
+  - El ciclo CRUD válido se realizó en Swagger contra el servidor de desarrollo. No se repitieron las peticiones HTTP contra `dist`; las pruebas de ejecución de la versión compilada quedan pendientes.
+
+- Error y solución:
+  Antes, las rutas y consultas de preguntas estaban concentradas en `app.ts`, mezclando configuración HTTP, validación y acceso a la base de datos. Las fui separando: el router declara endpoints, cada controlador maneja la petición y la respuesta, y el servicio concentra las consultas Prisma. El router se monta con el mismo prefijo `/api/questions` para conservar las URLs públicas.
+
+- Dudas:
+  Duda resuelta: si una pregunta no existe, el servicio no necesita conocer HTTP. `getQuestionById` devuelve `null` y el controlador convierte ese resultado en 404 `QUESTION_NOT_FOUND`. Así se mantiene separada la consulta de datos de la respuesta HTTP. No me quedan dudas pendientes sobre este punto.
+
+- PR y correcciones:
+  La rama actual es `reto/08-rutas-controladores-servicios`. Los cambios siguen sin commit y no hay una PR abierta para el reto 08. Antes de solicitar revisión, debo ejecutar las pruebas pendientes, completar los checks de autoevaluación del reto con resultados reales, crear el commit y abrir una PR hacia `develop` sin hacer merge.
 
 ## 09 · Relaciona preguntas, opciones y categorías
 
