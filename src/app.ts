@@ -3,21 +3,13 @@
 
 import express from "express";
 
-import { prisma } from "./lib/prisma.js";
-
-import { Prisma } from "@prisma/client";
-
 // Importa Swagger UI para mostrar la documentación de la API en /docs.
 import swaggerUi from "swagger-ui-express";
 
 // Importa la especificación OpenAPI generada desde swagger.ts.
 import { swaggerSpec } from "./docs/swagger.js";
 
-// Importa el esquema de validación de preguntas.
-import { questionSchema } from "./schemas/question.schema.js";
-
-// Importa el esquema de validación del ID de pregunta.
-import { questionIdSchema } from "./schemas/question-id.schema.js";
+import {questionRouter} from "./routes/questions.routes.js"
 
 // Importa los middlewares de manejo de errores.
 import {
@@ -109,9 +101,10 @@ app.use(jsonErrorMiddleware);
  *                 message: Ha ocurrido un error interno en el servidor
  */
 app.get("/", (_req, res) => {
-  res.json({ message: "Bienvenido a TriviaApp Backend" });
+  res.json({ message: "Bienvenido a TriviaApp Backend José Luis" });
 });
 
+// GET: consulta y muestra todas las preguntas.
 /**
  * @openapi
  * /health:
@@ -170,31 +163,9 @@ app.get("/health", (_req, res) => {
  *                 code: INTERNAL_SERVER_ERROR
  *                 message: Ha ocurrido un error interno en el servidor
  */
-app.get("/api/questions", async (_req, res) => {
-  // Pide todas las preguntas guardadas en la tabla.
-  const preguntas = await prisma.question.findMany({
-    // Consulta select.
-    select: {
-      id: true,
-      statement: true,
-      options: true,
-    },
-  });
+app.use("/api/questions", questionRouter);
 
-  //Nos sirve para  trasnformar cada pregunta en un objeto con el formato publico de la API.
-  const preguntasPublicas = preguntas.map((pregunta) => {
-    // Creamos un objeto público sin incluir respuestaCorrecta.
-    return {
-      id: pregunta.id,
-      enunciado: pregunta.statement, // Campo público  enunciado
-      opciones: pregunta.options,
-    };
-  });
-
-  // Devolvemos las preguntas públicas como respuesta JSON.
-  res.json(preguntasPublicas);
-});
-
+// GET: consulta una pregunta concreta usando su ID.
 /**
  * @openapi
  * /api/questions/{id}:
@@ -249,50 +220,8 @@ app.get("/api/questions", async (_req, res) => {
  *                 code: INTERNAL_SERVER_ERROR
  *                 message: Ha ocurrido un error interno en el servidor
  */
-app.get("/api/questions/:id", async (req, res) => {
-  // Validamos los parámetros de la URL usando Zod.
-  const resultadoValidacion = questionIdSchema.safeParse(req.params);
 
-  // Si el ID no cumple el esquema, devolvemos un error 400.
-  if (!resultadoValidacion.success) {
-    return res.status(400).json({
-      error: {
-        code: "VALIDATION_ERROR",
-        message: "Los datos enviados no son válidos",
-      },
-    });
-  }
-
-  // Usamos el ID que Zod ha validado.
-  const id = Number(resultadoValidacion.data.id);
-
-  const pregunta = await prisma.question.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      statement: true,
-      options: true,
-    },
-  });
-
-  // Si no existe, devolvemos un error 404.
-  if (!pregunta) {
-    return res.status(404).json({
-      error: {
-        code: "QUESTION_NOT_FOUND",
-        message: "Pregunta no encontrada",
-      },
-    });
-  }
-
-  // Devolvemos la pregunta sin mostrar respuestaCorrecta.
-  return res.json({
-    id: pregunta.id,
-    enunciado: pregunta.statement,
-    opciones: pregunta.options,
-  });
-});
-
+// POST: crea y guarda una pregunta nueva.
 /**
  * @openapi
  * /api/questions:
@@ -350,42 +279,8 @@ app.get("/api/questions/:id", async (req, res) => {
  *                 code: INTERNAL_SERVER_ERROR
  *                 message: Ha ocurrido un error interno en el servidor
  */
-app.post("/api/questions", async (req, res) => {
-  // Validamos el body usando el esquema de Zod.
-  const resultadoValidacion = questionSchema.safeParse(req.body);
 
-  // Si la validación falla, devolvemos un error 400.
-  if (!resultadoValidacion.success) {
-    return res.status(400).json({
-      error: {
-        code: "VALIDATION_ERROR",
-        message: "Los datos enviados no son válidos",
-      },
-    });
-  }
-
-  // Usamos los datos que Zod ha validado.
-  const { enunciado, opciones, respuestaCorrecta } = resultadoValidacion.data;
-
-  const nuevaPregunta = await prisma.question.create({
-    data: {
-      statement: enunciado,
-      options: opciones,
-      solution: respuestaCorrecta,
-    },
-    select: {
-      id: true,
-      statement: true,
-      options: true,
-    },
-  });
-  return res.status(201).json({
-    id: nuevaPregunta.id,
-    enunciado: nuevaPregunta.statement,
-    opciones: nuevaPregunta.options,
-  });
-});
-
+// PUT: actualiza una pregunta existente usando su ID.
 /**
  * @openapi
  * /api/questions/{id}:
@@ -463,72 +358,8 @@ app.post("/api/questions", async (req, res) => {
  *                 code: INTERNAL_SERVER_ERROR
  *                 message: Ha ocurrido un error interno en el servidor
  */
-app.put("/api/questions/:id", async (req, res) => {
-  // Validamos el ID de la URL.
-  const resultadoValidacionId = questionIdSchema.safeParse(req.params);
 
-  if (!resultadoValidacionId.success) {
-    return res.status(400).json({
-      error: {
-        code: "VALIDATION_ERROR",
-        message: "Los datos enviados no son válidos",
-      },
-    });
-  }
-
-  // Express recibe los parametros como texto; Prisma esper un número.
-  const id = Number(resultadoValidacionId.data.id);
-
-  const resultadoValidacion = questionSchema.safeParse(req.body);
-
-  // Si el body no es válido, devolvemos un error 400.
-  if (!resultadoValidacion.success) {
-    return res.status(400).json({
-      error: {
-        code: "VALIDATION_ERROR",
-        message: "Los datos enviados no son válidos",
-      },
-    });
-  }
-
-  // Usamos únicamente los datos validados por Zod.
-  const { enunciado, opciones, respuestaCorrecta } = resultadoValidacion.data;
-  try {
-    const preguntaActualizada = await prisma.question.update({
-      where: { id },
-      data: {
-        statement: enunciado,
-        options: opciones,
-        solution: respuestaCorrecta,
-      },
-      select: {
-        id: true,
-        statement: true,
-        options: true,
-      },
-    });
-
-    return res.status(200).json({
-      id: preguntaActualizada.id,
-      enunciado: preguntaActualizada.statement,
-      opciones: preguntaActualizada.options,
-    });
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
-      return res.status(404).json({
-        error: {
-          code: "QUESTION_NOT_FOUND",
-          message: "Pregunta no encontrada",
-        },
-      });
-    }
-    throw error;
-  }
-});
-
+// DELETE: elimina una pregunta usando su ID.
 /**
  * @openapi
  * /api/questions/{id}:
@@ -579,39 +410,7 @@ app.put("/api/questions/:id", async (req, res) => {
  *                 code: INTERNAL_SERVER_ERROR
  *                 message: Ha ocurrido un error interno en el servidor
  */
-app.delete("/api/questions/:id", async (req, res) => {
-  // Validamos el ID de la URL.
-  const resultadoValidacionId = questionIdSchema.safeParse(req.params);
 
-  // Si el ID no es válido, devolvemos un error 400.
-  if (!resultadoValidacionId.success) {
-    return res.status(400).json({
-      error: {
-        code: "VALIDATION_ERROR",
-        message: "Los datos enviados no son válidos",
-      },
-    });
-  }
-
-  // Convertimos el ID validado a número.
-  const id = Number(resultadoValidacionId.data.id);
-
-  const resultado = await prisma.question.deleteMany({
-    where: { id },
-  });
-
-  if (resultado.count === 0) {
-    return res.status(404).json({
-      error: {
-        code: "QUESTION_NOT_FOUND",
-        message: "Pregunta no encontrada",
-      },
-    });
-  }
-
-  // Respondemos con 204 sin contenido.
-  return res.status(204).send();
-});
 
 // Si ninguna ruta anterior coincide con la petición,
 // devolvemos un error 404.
