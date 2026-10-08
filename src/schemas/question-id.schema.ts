@@ -1,7 +1,14 @@
 import { z } from "zod";
-// Define el esquema de validación para el ID de una pregunta, asegurando que sea un número entero positivo representado como string.
+
+// Valida que el ID sea un entero positivo dentro del rango de PostgreSQL Int.
 export const questionIdSchema = z
   .object({
-    id: z.string().regex(/^\d+$/), // El ID debe ser un número entero positivo representado como string
+    id: z
+      .string()
+      .regex(/^\d+$/)
+      .refine((id) => {
+        const numero = Number(id);
+        return Number.isInteger(numero) && numero >= 1 && numero <= 2147483647;
+      }),
   })
-  .strict(); // No se permiten propiedades adicionales en el objeto del ID de la pregunta
+  .strict();
