@@ -6,7 +6,16 @@ export async function getQuestions() {
     select: {
       id: true,
       statement: true,
-      options: true,
+      categoryId: true,
+      choices: {
+        select: {
+          text: true,
+          position: true,
+        },
+        orderBy: {
+          position: "asc",
+        },
+      },
     },
   });
 }
@@ -21,7 +30,16 @@ export async function getQuestionById(id: number) {
     select: {
       id: true,
       statement: true,
-      options: true,
+      categoryId: true,
+      choices: {
+        select: {
+          text: true,
+          position: true,
+        },
+        orderBy: {
+          position: "asc",
+        },
+      },
     },
   });
 }
@@ -34,17 +52,35 @@ export async function createQuestion(input: {
   enunciado: string;
   opciones: string[];
   respuestaCorrecta: number;
+  categoryId: number;
 }) {
   return prisma.question.create({
     data: {
       statement: input.enunciado,
-      options: input.opciones,
-      solution: input.respuestaCorrecta,
+      category: {
+        connect: { id: input.categoryId },
+      },
+      choices: {
+        create: input.opciones.map((text, position) => ({
+          text,
+          position,
+          isCorrect: position === input.respuestaCorrecta,
+        })),
+      },
     },
     select: {
       id: true,
       statement: true,
-      options: true,
+      categoryId: true,
+      choices: {
+        select: {
+          text: true,
+          position: true,
+        },
+        orderBy: {
+          position: "asc",
+        },
+      },
     },
   });
 }
@@ -55,28 +91,42 @@ devuelve null; si lo encontró,
 vuelve a buscar la pregunta con getQuestionById, que devuelve solo los campos públicos.*/
 export async function updateQuestion(
   id: number,
-  input: { enunciado: string; opciones: string[]; respuestaCorrecta: number },
+  input: {
+    enunciado: string;
+    opciones: string[];
+    respuestaCorrecta: number;
+    categoryId: number;
+  },
 ) {
-  const resultado = await prisma.question.updateMany({
+  // Comprobamos si existe antes de intentar actualizarla.
+  const existingQuestion = await prisma.question.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+
+  if (!existingQuestion) {
+    return null;
+  }
+
+  // Actualizamos la pregunta, su categoría y sus opciones.
+  await prisma.question.update({
     where: { id },
     data: {
       statement: input.enunciado,
-      options: input.opciones,
-      solution: input.respuestaCorrecta,
+      category: {
+        connect: { id: input.categoryId },
+      },
+      choices: {
+        deleteMany: {},
+        create: input.opciones.map((text, position) => ({
+          text,
+          position,
+          isCorrect: position === input.respuestaCorrecta,
+        })),
+      },
     },
   });
-  if (resultado.count === 0) {
-    return null;
-  }
-  return getQuestionById(id);
-}
 
-/*deleteMany devuelve cuántas filas eliminó. 
-Esta función devuelve true si encontró y borró una pregunta; 
-devuelve false si ese ID no existía. */
-export async function deleteQuestion(id: number) {
-    const resultado = await prisma.question.deleteMany({ // Devuelve cuantas filas eliminó
-        where: {id},
-    });
-    return resultado.count > 0;
+  // Devolvemos la pregunta actualizada con sus opciones ordenadas.
+  return getQuestionById(id);
 }

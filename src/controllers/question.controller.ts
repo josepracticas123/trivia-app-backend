@@ -16,7 +16,8 @@ export async function getQuestionsController(_req: Request, res: Response) {
   const preguntasPublicas = preguntas.map((pregunta) => ({
     id: pregunta.id,
     enunciado: pregunta.statement,
-    opciones: pregunta.options,
+    categoryId: pregunta.categoryId,
+    opciones: pregunta.choices.map((choice) => choice.text),
   }));
   return res.json(preguntasPublicas);
 }
@@ -49,12 +50,11 @@ export async function getQuestionByIdController(req: Request, res: Response) {
     });
   }
 
-  // Devolvemos mensaje de 200 si l apregunta existe.
-
   return res.json({
     id: pregunta.id,
     enunciado: pregunta.statement,
-    opciones: pregunta.options,
+    categoryId: pregunta.categoryId,
+    opciones: pregunta.choices.map((choice) => choice.text),
   });
 }
 /* Con req.body es el JSOn qu eenvía el cliente, si safeParse lo valida. 
