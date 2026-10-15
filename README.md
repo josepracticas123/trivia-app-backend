@@ -111,10 +111,12 @@ Para configurar una instalación local:
    npm run seed
    ```
 
-   `migrate dev` puede requerir que PostgreSQL permita crear una shadow database. Si no es posible, configura una shadow database vacía separada siguiendo la guía de la versión de Prisma; nunca uses producción como shadow. La migración de datos que cambia `Question.solution` de texto a índice convierte cada respuesta al índice correspondiente dentro de `options` y falla si encuentra una respuesta que no coincide con ninguna opción.
+   `migrate dev` puede requerir que PostgreSQL permita crear una shadow database. Si no es posible, configura una shadow database vacía separada siguiendo la guía de la versión de Prisma; nunca uses producción como shadow. Desde el reto 09, el historial parte de la migración inicial `20261015124955_init_reto09`, que crea Category, Question y Option en una base vacía. El tutor autorizó reiniciar la base de prácticas y regenerar el historial para corregir discrepancias provocadas por cambios manuales. La conversión histórica de `Question.solution` de texto a índice pertenece a la entrega del reto 06 y ya no forma parte del historial actual.
 6. Abre `npm run db:studio` o la vista de datos de Railway para inspeccionar `Question` y `_prisma_migrations`. Para verificar la idempotencia del seed, cuenta filas antes, ejecútalo dos veces, vuelve a contar y registra los resultados reales. Cerrar y reabrir Studio no borra los datos persistidos en PostgreSQL.
 
 El modelo está en `prisma/schema.prisma`, el historial reproducible en `prisma/migrations/` y el seed en `src/lib/seed.ts`. El cliente Prisma local y los comandos CLI leen `DATABASE_URL`; las rutas de la API siguen usando datos en memoria hasta el reto 07. Un backend alojado en Railway puede usar la URL privada de PostgreSQL del mismo entorno. La CLI `migrate status` solo inspecciona el historial; `migrate dev` cambia el esquema y `seed` inserta datos.
+
+El reinicio acordado en el [reto 09](retos/09-relaciones.md) es una excepción puntual, con pérdida de los datos anteriores aceptada por el tutor. A partir de esa base se conserva la migración inicial y se crean migraciones nuevas para los siguientes retos. No repitas el borrado del historial ni el reset como solución habitual.
 
 ## Estructura y responsabilidades
 

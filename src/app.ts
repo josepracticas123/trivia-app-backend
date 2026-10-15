@@ -9,7 +9,9 @@ import swaggerUi from "swagger-ui-express";
 // Importa la especificación OpenAPI generada desde swagger.ts.
 import { swaggerSpec } from "./docs/swagger.js";
 
-import {questionRouter} from "./routes/questions.routes.js"
+import { questionRouter } from "./routes/questions.routes.js";
+
+import { categoryRouter } from "./routes/categories.routes.js";
 
 // Importa los middlewares de manejo de errores.
 import {
@@ -235,6 +237,7 @@ app.use("/api/questions", questionRouter);
  *           schema:
  *             $ref: "#/components/schemas/PreguntaInput"
  *           example:
+ *             categoryId: 1
  *             enunciado: ¿Cuál es la capital de España?
  *             opciones:
  *               - Madrid
@@ -304,6 +307,7 @@ app.use("/api/questions", questionRouter);
  *           schema:
  *             $ref: "#/components/schemas/PreguntaInput"
  *           example:
+ *             categoryId: 1
  *             enunciado: ¿Cuál es la capital de Francia?
  *             opciones:
  *               - París
@@ -410,7 +414,30 @@ app.use("/api/questions", questionRouter);
  *                 code: INTERNAL_SERVER_ERROR
  *                 message: Ha ocurrido un error interno en el servidor
  */
-
+// Ruta pública que lista las categorías
+/**
+ * @openapi
+ * /api/categories:
+ *   get:
+ *     summary: Obtener todas las categorías
+ *     description: Devuelve las categorías disponibles para asignar a una pregunta.
+ *     responses:
+ *       200:
+ *         description: Lista de categorías
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: "#/components/schemas/Categoria"
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
+app.use("/api/categories", categoryRouter);
 
 // Si ninguna ruta anterior coincide con la petición,
 // devolvemos un error 404.

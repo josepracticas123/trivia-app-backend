@@ -5,6 +5,7 @@ import {
   createQuestion,
   updateQuestion,
   deleteQuestion,
+  categoryExist,
 } from "../services/question.service.js";
 import { questionIdSchema } from "../schemas/question-id.schema.js";
 import { questionSchema } from "../schemas/question.schema.js";
@@ -16,7 +17,8 @@ export async function getQuestionsController(_req: Request, res: Response) {
   const preguntasPublicas = preguntas.map((pregunta) => ({
     id: pregunta.id,
     enunciado: pregunta.statement,
-    opciones: pregunta.options,
+    categoryId: pregunta.categoryId,
+    opciones: pregunta.choices.map((choice) => choice.text),
   }));
   return res.json(preguntasPublicas);
 }
@@ -49,12 +51,11 @@ export async function getQuestionByIdController(req: Request, res: Response) {
     });
   }
 
-  // Devolvemos mensaje de 200 si l apregunta existe.
-
   return res.json({
     id: pregunta.id,
     enunciado: pregunta.statement,
-    opciones: pregunta.options,
+    categoryId: pregunta.categoryId,
+    opciones: pregunta.choices.map((choice) => choice.text),
   });
 }
 /* Con req.body es el JSOn qu eenvía el cliente, si safeParse lo valida. 
@@ -71,6 +72,16 @@ export async function createQuestionController(req: Request, res: Response) {
       },
     });
   }
+  // Comprobamos que la categoría indicada existe antes de crear la pregunta.
+  const exists = await categoryExist(resultadoValidacion.data.categoryId);
+  if (!exists) {
+    return res.status(400).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "La categoría indicada no existe",
+      },
+    });
+  }
   // Para devolver la pregunta sin la solución. Se ejecuta con los datos qu epasaron la validación.
   const nuevaPregunta = await createQuestion(resultadoValidacion.data);
 
@@ -78,7 +89,8 @@ export async function createQuestionController(req: Request, res: Response) {
   return res.status(201).json({
     id: nuevaPregunta.id,
     enunciado: nuevaPregunta.statement,
-    opciones: nuevaPregunta.options,
+    categoryId: nuevaPregunta.categoryId,
+    opciones: nuevaPregunta.choices.map((choice) => choice.text),
   });
 }
 
@@ -111,6 +123,17 @@ export async function updateQuestionController(req: Request, res: Response) {
     });
   }
 
+  // Comprobamos que la nueva categoría existe antes de actualizar la pregunta.
+  const exists = await categoryExist(resultadoValidacionJson.data.categoryId);
+  if (!exists) {
+    return res.status(400).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "La categoría indicada no existe",
+      },
+    });
+  }
+
   //Pasamos el servicio ID valido sino devolveremos el error.
   const preguntaActualizada = await updateQuestion(
     id,
@@ -129,7 +152,8 @@ export async function updateQuestionController(req: Request, res: Response) {
   return res.json({
     id: preguntaActualizada.id,
     enunciado: preguntaActualizada.statement,
-    opciones: preguntaActualizada.options,
+    categoryId: preguntaActualizada.categoryId,
+    opciones: preguntaActualizada.choices.map((choice) => choice.text),
   });
 }
 
