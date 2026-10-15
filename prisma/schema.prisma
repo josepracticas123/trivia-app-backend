@@ -32,3 +32,11 @@ model Option {
   @@unique([questionId, position])
   @@unique([questionId, text])
 }
+
+// Modelo par ausuario.
+model user{
+  id Int @id @default(autoincrement())
+  email String @unique
+  passwordHash String
+  createdAt DateTime @default(now())
+}

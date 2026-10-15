@@ -16,13 +16,13 @@
 
 ## Comprueba tu entrega
 
-- [ ] Un registro válido guarda un usuario y un hash, nunca la contraseña original.
-- [ ] Email inválido, contraseña corta y campos inesperados se rechazan con 400.
-- [ ] El email normalizado tiene restricción única en la DB y un duplicado da 409.
-- [ ] Ninguna respuesta o log incluye contraseña o passwordHash.
-- [ ] Puedo mostrar registro válido, inválido y duplicado desde Swagger.
-- [ ] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
-- [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
+- [x] Un registro válido guarda un usuario y un hash, nunca la contraseña original.
+- [x] Email inválido, contraseña corta y campos inesperados se rechazan con 400.
+- [x] El email normalizado tiene restricción única en la DB y un duplicado da 409.
+- [x] Ninguna respuesta o log incluye contraseña o passwordHash.
+- [x] Puedo mostrar registro válido, inválido y duplicado desde Swagger.
+- [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+- [x] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
 
@@ -38,13 +38,13 @@ La librería genera la sal. No implementes tu propio algoritmo y no uses hashes 
 
 ## Registro de entrega y revisión
 
-Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
+Estado: **entrega completada, pendiente de revisión**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
 
-- PR y commit revisado: pendiente.
-- Prueba correcta (petición/acción y resultado): pendiente.
-- Prueba inválida o fallo (petición/acción y resultado): pendiente.
-- Comandos y resultados: pendiente.
-- Dudas o correcciones: pendiente.
+- PR y commit revisado: PR abierto hacia `develop` desde `reto/10-registro`; pendiente de revisión.
+- Prueba correcta (petición/acción y resultado): `POST /api/auth/register` con `{"email":"  Juan@EMAIL.com ","password":"secreta123"}` → `201` con `{ id: 1, email: "juan@email.com" }` (email normalizado). En la DB, `passwordHash` empieza por `$argon2id$...`; la contraseña original no aparece en ninguna respuesta.
+- Prueba inválida o fallo (petición/acción y resultado): contraseña de 7 caracteres → `400 VALIDATION_ERROR`; campo inesperado (`nombre`) → `400`; mismo email con distinta grafía (`JUAN@email.com`) → `409 EMAIL_ALREADY_EXISTS` sin crear usuario.
+- Comandos y resultados: `npm.cmd run typecheck` y `npm.cmd run build` terminaron correctamente; migraciones `add_user` y `fix_user_column` aplicadas (`prisma migrate status`: up to date); ruta y esquemas visibles en `/docs` y probados desde Swagger (201/400/409).
+- Dudas o correcciones: typo en el modelo (`passwordHas` → `passwordHash`) corregido con la migración `fix_user_column`; cliente de Prisma regenerado con `db:generate`; código de error unificado a `EMAIL_ALREADY_EXISTS`.
 - Revisión y aprobación del tutor: pendiente.
 - Merge en `develop`: pendiente.
 

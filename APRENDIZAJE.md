@@ -322,12 +322,38 @@ En cada reto anota:
 
 ## 10 · Registra usuarios
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- Lo que he construido:
+  - Modelo `User` en Prisma (`id`, `email` único, `passwordHash`, `createdAt`) con su migración.
+  - Endpoint `POST /api/auth/register`: valida con Zod, normaliza el email (trim + minúsculas), exige contraseña de 8+ caracteres y devuelve solo `id` y `email`.
+  - Servicio de registro con **argon2**: genera el hash con su sal y guarda el usuario; si el email ya existe, devuelve `null` y el controlador responde 409.
+  - Documentación Swagger con los esquemas `RegistroEntrada` y `UsuarioPublico`, probada desde `/docs` (201, 400 y 409).
+
+- Conceptos y explicación propia:
+  - **Hash ≠ cifrar**: el hash es de una sola vía (no se puede deshacer), el cifrado sí se puede descifrar con la clave. Para contraseñas se usa hash.
+  - La restricción `@unique` del email en la DB es quien evita duplicados de verdad; comprobar el email antes del INSERT no basta porque dos peticiones pueden llegar a la vez (condición de carrera). Nosotros solo interpretamos el error `P2002` de Prisma para traducirlo a 409.
+  - argon2 genera la sal dentro del propio hash; no hay que inventar sal ni usar algoritmos rápidos como SHA-256 para contraseñas.
+  - El email se normaliza con trim y minúsculas para que " Juan@EMAIL.com " y "juan@email.com" sean el mismo usuario; la contraseña NO se toca jamás.
+  - El `select: { id: true, email: true }` del servicio garantiza que el `passwordHash` no sale ni hacia el controlador ni hacia el cliente.
+
+- Pruebas y resultados:
+  - `POST /api/auth/register` con `{"email":"  Juan@EMAIL.com ","password":"secreta123"}` → `201` con `{ id: 1, email: "juan@email.com" }`; en la DB el `passwordHash` empieza por `$argon2id$...` y no aparece la contraseña original.
+  - Mismo email con otra grafía (`JUAN@email.com`) → `409 EMAIL_ALREADY_EXISTS` y no crea usuario.
+  - Contraseña de 7 caracteres → `400 VALIDATION_ERROR`.
+  - Campo inesperado (`nombre`) → `400 VALIDATION_ERROR`.
+  - Desde Swagger: registro válido con `maria@email.com` → `201`; repetido → `409`; con campo extra → `400`.
+  - `npm.cmd run typecheck` y `npm.cmd run build` terminaron correctamente.
+
+- Error y solución:
+  - Typo en el modelo: escribí `passwordHas` en vez de `passwordHash`; TypeScript marcó el campo en el servicio. Corregí el esquema y apliqué la migración `fix_user_column` (renombra la columna) en lugar de resetear la base.
+  - `prisma.user` aparecía en rojo: el cliente de Prisma estaba desactualizado tras el cambio de esquema. Se arregla con `npm run db:generate` (y reiniciando el TS Server de VS Code).
+  - El código de error del 409 se unificó a `EMAIL_ALREADY_EXISTS` en controlador y documentación.
+
+- Dudas:
+  - Duda de la demostración al tutor: qué diferencia hay entre hash y cifrar → resuelta (el hash no es reversible; el cifrado sí con la clave).
+  - Por qué comprobar el email antes del INSERT no basta → resuelta con la restricción única + lectura del error `P2002`.
+
+- PR y correcciones:
+  - PR abierto hacia `develop` desde `reto/10-registro`. Sin merge ni reto 11 hasta la aprobación del tutor.
 
 ## 11 · Inicia sesión
 
