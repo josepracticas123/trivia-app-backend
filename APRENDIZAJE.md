@@ -284,12 +284,37 @@ En cada reto anota:
 
 ## 09 · Relaciona preguntas, opciones y categorías
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- Lo que he construido:
+  - He relacionado cada pregunta con una categoría mediante `categoryId` y con sus opciones mediante el modelo `Option`.
+  - He añadido `GET /api/categories`, que devuelve las categorías disponibles con `id` y `name`.
+  - He adaptado el CRUD de preguntas para recibir y devolver `categoryId`; las respuestas públicas siguen sin mostrar la opción correcta.
+  - He actualizado Swagger con el esquema `Categoria`, el campo `categoryId` y los ejemplos de creación y actualización.
+
+- Conceptos y explicación propia:
+  - `categoryId` es una clave foránea: conecta una pregunta con una categoría existente y evita referencias rotas.
+  - La relación es de una categoría a muchas preguntas y de una pregunta a muchas opciones. Cada opción guarda su texto, posición e información interna de si es correcta.
+  - `onDelete: Cascade` significa que al borrar una pregunta, PostgreSQL borra también sus opciones para no dejar filas huérfanas.
+  - El controlador valida primero el formato del `categoryId` con Zod y después consulta si esa categoría existe antes de crear o actualizar. Por eso una categoría inexistente devuelve 400 sin modificar datos.
+
+- Pruebas y resultados:
+  - `GET /api/categories` respondió `200` y devolvió las cuatro categorías con `id` y `name`, ordenadas por nombre.
+  - `POST /api/questions` con `categoryId: 1` respondió `201` y devolvió `id`, `enunciado`, `categoryId` y opciones, sin `respuestaCorrecta`.
+  - El mismo POST con `categoryId: 999999` respondió `400 VALIDATION_ERROR` y el mensaje `La categoría indicada no existe`.
+  - Se actualizó la pregunta temporal con ID 17 mediante `PUT /api/questions/17`; respondió `200`, cambió a `categoryId: 3` y devolvió las cuatro opciones nuevas sin revelar la solución.
+  - Un PUT posterior de la pregunta 17 con `categoryId: 999999` respondió `400`; el GET posterior comprobó que seguían guardados el enunciado, categoría y opciones de la actualización válida.
+  - `DELETE /api/questions/17` respondió `204` y el GET posterior respondió `404 QUESTION_NOT_FOUND`. En Prisma Studio no quedó ninguna opción con `questionId: 17`.
+  - `npm.cmd run seed` creó la pregunta del seed que faltaba en la primera ejecución; la segunda encontró las seis preguntas y no creó duplicados.
+  - `npm.cmd run db:migrate:status` indicó 3 migraciones y `Database schema is up to date!`. `npm.cmd run typecheck` y `npm.cmd run build` terminaron correctamente.
+
+- Error y solución:
+  - La ruta de categorías se montó primero como `/api/categoies`, por lo que Swagger devolvía 404. Corregí la URL a `/api/categories`.
+  - El ejemplo YAML del PUT tenía `categoryId` con una indentación distinta del resto de campos. Al alinearlo correctamente Swagger volvió a interpretar la documentación.
+
+- Dudas:
+  - Duda resuelta: `npm.cmd run db:migrate:status` confirma que hay tres migraciones aplicadas y que el esquema de la base de desarrollo está actualizado. Esta comprobación valida el estado actual del esquema; las pruebas funcionales realizadas validaron el CRUD, las categorías y el borrado en cascada.
+
+- PR y correcciones:
+  - Pendiente de revisar el diff, crear el commit y abrir el PR hacia `develop`. No debo hacer merge ni empezar el reto 10 hasta la aprobación del tutor.
 
 ## 10 · Registra usuarios
 

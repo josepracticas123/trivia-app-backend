@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 // Librería que genera el documento OpenAPI a partir de los comentarios @openapi.
 import swaggerJSDoc from "swagger-jsdoc";
+import { maximum, minimum, required } from "zod/mini";
 // Configuración principal de OpenAPI.
 const swaggerDefinition = {
   openapi: "3.0.0",
@@ -15,12 +16,32 @@ const swaggerDefinition = {
   // Esquemas reutilizables por las diferentes rutas de la API.
   components: {
     schemas: {
+      // Representa una categoría disponible para asignar a la pregunta.
+      Categoria: {
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            example: 1,
+          },
+
+          name: {
+            type: "string",
+            example: "Geografía",
+          },
+        },
+        required: ["id", "name"],
+      },
       // Representa una pregunta que podemos devolver al cliente.
       // Importante: NO contiene respuestaCorrecta.
       PreguntaPublica: {
         type: "object",
         properties: {
           id: {
+            type: "integer",
+            example: 1,
+          },
+          categoryId: {
             type: "integer",
             example: 1,
           },
@@ -35,15 +56,10 @@ const swaggerDefinition = {
             items: {
               type: "string",
             },
-            example: [
-              "Madrid",
-              "Barcelona",
-              "Valencia",
-              "Sevilla",
-            ],
+            example: ["Madrid", "Barcelona", "Valencia", "Sevilla"],
           },
         },
-        required: ["id", "enunciado", "opciones"],
+        required: ["id", "enunciado", "categoryId", "opciones"],
       },
       // Representa los datos necesarios para crear o actualizar una pregunta.
       // Aquí SÍ incluimos respuestaCorrecta porque forma parte de la entrada.
@@ -53,6 +69,11 @@ const swaggerDefinition = {
         type: "object",
         additionalProperties: false,
         properties: {
+          categoryId: {
+            type: "integer",
+            minimum: 1,
+            maximum: 1,
+          },
           enunciado: {
             type: "string",
             minLength: 1,
@@ -67,12 +88,7 @@ const swaggerDefinition = {
               type: "string",
               minLength: 1,
             },
-            example: [
-              "Madrid",
-              "Barcelona",
-              "Valencia",
-              "Sevilla",
-            ],
+            example: ["Madrid", "Barcelona", "Valencia", "Sevilla"],
           },
           respuestaCorrecta: {
             type: "integer",
@@ -81,7 +97,7 @@ const swaggerDefinition = {
             example: 0,
           },
         },
-        required: ["enunciado", "opciones", "respuestaCorrecta"],
+        required: ["categoryId", "enunciado", "opciones", "respuestaCorrecta"],
       },
       // Representa el formato de los errores que devuelve nuestra API.
       Error: {

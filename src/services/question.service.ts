@@ -130,3 +130,24 @@ export async function updateQuestion(
   // Devolvemos la pregunta actualizada con sus opciones ordenadas.
   return getQuestionById(id);
 }
+
+/* Buscamos y eliminamos la pregunta por el id.
+Devuelve true si se borró; false si no existía esa pregunta. */
+export async function deleteQuestion(id: number) {
+  const result = await prisma.question.deleteMany({
+    where: { id },
+  });
+
+  // Como el id es único, count solo puede ser 0 o 1.
+  return result.count > 0;
+}
+
+/* Comprueba si hay una categoría por ID. 
+Devuelve truye si prisma la encuentra, y false si no existe */
+export async function categoryExist(categoryId: number) {
+  const category = await prisma.category.findUnique({ // Busca el campo único
+    where: { id: categoryId },
+    select: { id: true },
+  });
+  return category !== null;
+}

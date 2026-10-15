@@ -16,13 +16,13 @@
 
 ## Comprueba tu entrega
 
-- [ ] Las tablas y relaciones se pueden explicar y las referencias inválidas dan 400 sin crear datos incompletos.
-- [ ] La migración conserva las preguntas y sus soluciones; está ensayada antes de aplicarla.
-- [ ] Cada pregunta tiene cuatro opciones distintas y exactamente una correcta.
-- [ ] Una edición fallida no deja opciones borradas o a medio crear.
-- [ ] Eliminar una pregunta no deja opciones huérfanas; lista y detalle mantienen un contrato documentado sin revelar la solución.
-- [ ] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
-- [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
+- [x] Las tablas y relaciones se pueden explicar y las referencias inválidas dan 400 sin crear datos incompletos.
+- [x] La migración conserva las preguntas y sus soluciones; está ensayada antes de aplicarla.
+- [x] Cada pregunta tiene cuatro opciones distintas y exactamente una correcta.
+- [x] Una edición fallida no deja opciones borradas o a medio crear.
+- [x] Eliminar una pregunta no deja opciones huérfanas; lista y detalle mantienen un contrato documentado sin revelar la solución.
+- [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+- [x] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
 
@@ -41,11 +41,11 @@ La representación de la DB puede cambiar sin exigir al frontend que conozca tod
 
 Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
 
-- PR y commit revisado: pendiente.
-- Prueba correcta (petición/acción y resultado): pendiente.
-- Prueba inválida o fallo (petición/acción y resultado): pendiente.
-- Comandos y resultados: pendiente.
-- Dudas o correcciones: pendiente.
+- PR y commit revisado: pendiente de crear el commit y abrir el PR hacia `develop`.
+- Prueba correcta (petición/acción y resultado): `POST /api/questions` con `categoryId: 1` respondió 201; `PUT /api/questions/17` respondió 200 y actualizó categoría y opciones; `DELETE /api/questions/17` respondió 204.
+- Prueba inválida o fallo (petición/acción y resultado): POST y PUT con `categoryId: 999999` respondieron 400 `VALIDATION_ERROR`, sin crear ni modificar preguntas. Al consultar después de la eliminación, `GET /api/questions/17` respondió 404 `QUESTION_NOT_FOUND`.
+- Comandos y resultados: `npm.cmd run db:migrate:status` encontró 3 migraciones y el esquema actualizado; el seed ejecutado dos veces no creó duplicados en la segunda ejecución; `npm.cmd run typecheck` y `npm.cmd run build` terminaron correctamente.
+- Dudas o correcciones: duda resuelta sobre el estado de Prisma: las migraciones y el esquema de desarrollo están actualizados. Se corrigieron la URL `/api/categories` y la indentación YAML del ejemplo PUT en Swagger.
 - Revisión y aprobación del tutor: pendiente.
 - Merge en `develop`: pendiente.
 
