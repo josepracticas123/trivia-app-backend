@@ -18,6 +18,7 @@
 
 - [x] Las tablas y relaciones se pueden explicar y las referencias inválidas dan 400 sin crear datos incompletos.
 - [x] La migración conserva las preguntas y sus soluciones; está ensayada antes de aplicarla.
+  - Actualización tras la revisión: por indicación del tutor se regeneró el historial completo y la base desde cero (ver Registro). La nueva migración `20261015124955_init_reto09` genera el esquema vacío desde `schema.prisma` y los datos se recargan con el seed; no quedan datos antiguos que conservar.
 - [x] Cada pregunta tiene cuatro opciones distintas y exactamente una correcta.
 - [x] Una edición fallida no deja opciones borradas o a medio crear.
 - [x] Eliminar una pregunta no deja opciones huérfanas; lista y detalle mantienen un contrato documentado sin revelar la solución.
@@ -39,14 +40,16 @@ La representación de la DB puede cambiar sin exigir al frontend que conozca tod
 
 ## Registro de entrega y revisión
 
-Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
+Estado: **correcciones de la primera revisión subidas, pendiente de nueva revisión**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
 
-- PR y commit revisado: pendiente de crear el commit y abrir el PR hacia `develop`.
-- Prueba correcta (petición/acción y resultado): `POST /api/questions` con `categoryId: 1` respondió 201; `PUT /api/questions/17` respondió 200 y actualizó categoría y opciones; `DELETE /api/questions/17` respondió 204.
-- Prueba inválida o fallo (petición/acción y resultado): POST y PUT con `categoryId: 999999` respondieron 400 `VALIDATION_ERROR`, sin crear ni modificar preguntas. Al consultar después de la eliminación, `GET /api/questions/17` respondió 404 `QUESTION_NOT_FOUND`.
-- Comandos y resultados: `npm.cmd run db:migrate:status` encontró 3 migraciones y el esquema actualizado; el seed ejecutado dos veces no creó duplicados en la segunda ejecución; `npm.cmd run typecheck` y `npm.cmd run build` terminaron correctamente.
-- Dudas o correcciones: duda resuelta sobre el estado de Prisma: las migraciones y el esquema de desarrollo están actualizados. Se corrigieron la URL `/api/categories` y la indentación YAML del ejemplo PUT en Swagger.
-- Revisión y aprobación del tutor: pendiente.
+- PR y commit revisado: PR abierto hacia `develop` desde `reto/09-relaciones`; el tutor revisó el commit base `a4216fa` y las correcciones van en esta misma rama y este mismo PR.
+- Regeneración del historial de migraciones (acordada con el tutor en la revisión): la migración original eliminaba `options` y `solution` sin copiarlas a `Option` y añadía `categoryId` obligatorio sin asignarlo, por lo que fallaba con datos del esquema anterior. Se acordó borrar todo y empezar de cero: se eliminaron las carpetas de las tres migraciones, `npx prisma migrate reset --force` vació las tablas, los datos y `_prisma_migrations`, `npx prisma migrate dev --name init_reto09` generó la migración única `20261015124955_init_reto09` desde `schema.prisma` y `npm run seed` recargó los datos.
+- Verificación tras la regeneración: `prisma migrate status` informa "1 migration found" y "Database schema is up to date!"; la base contiene 6 preguntas, 4 categorías y 24 opciones; el seed ejecutado dos veces no creó duplicados.
+- Prueba correcta (petición/acción y resultado): `GET /api/categories` → 200 con las cuatro categorías; `POST /api/questions` con `categoryId: 2` → 201; `PUT` de esa misma pregunta con `categoryId: 3` → 200; `DELETE` → 204 y `GET` posterior → 404 `QUESTION_NOT_FOUND`.
+- Prueba inválida o fallo (petición/acción y resultado): POST y PUT con `categoryId: 999999` → 400 `VALIDATION_ERROR`, sin crear ni modificar datos.
+- Swagger: `PreguntaInput.categoryId` estaba documentado con `maximum: 1` frente al `2147483647` de Zod; se alineó y se comprobó con POST y PUT usando categorías existentes (2 y 3).
+- Comandos y resultados: `npm.cmd run typecheck` y `npm.cmd run build` terminaron correctamente.
+- Revisión y aprobación del tutor: pendiente de la nueva revisión.
 - Merge en `develop`: pendiente.
 
 No empieces el siguiente reto hasta que este PR esté aprobado e integrado. Las correcciones van en la misma rama y el mismo PR.

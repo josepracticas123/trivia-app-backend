@@ -72,7 +72,7 @@ const swaggerDefinition = {
           categoryId: {
             type: "integer",
             minimum: 1,
-            maximum: 1,
+            maximum: 2147483647,
           },
           enunciado: {
             type: "string",

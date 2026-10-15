@@ -1,22 +1,18 @@
-/*
-  Warnings:
-
-  - You are about to drop the column `options` on the `Question` table. All the data in the column will be lost.
-  - You are about to drop the column `solution` on the `Question` table. All the data in the column will be lost.
-  - Added the required column `categoryId` to the `Question` table without a default value. This is not possible if the table is not empty.
-
-*/
--- AlterTable
-ALTER TABLE "Question" DROP COLUMN "options",
-DROP COLUMN "solution",
-ADD COLUMN     "categoryId" INTEGER NOT NULL;
-
 -- CreateTable
 CREATE TABLE "Category" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
 
     CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Question" (
+    "id" SERIAL NOT NULL,
+    "statement" TEXT NOT NULL,
+    "categoryId" INTEGER NOT NULL,
+
+    CONSTRAINT "Question_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable

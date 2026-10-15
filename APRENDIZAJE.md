@@ -296,25 +296,29 @@ En cada reto anota:
   - `onDelete: Cascade` significa que al borrar una pregunta, PostgreSQL borra también sus opciones para no dejar filas huérfanas.
   - El controlador valida primero el formato del `categoryId` con Zod y después consulta si esa categoría existe antes de crear o actualizar. Por eso una categoría inexistente devuelve 400 sin modificar datos.
 
-- Pruebas y resultados:
-  - `GET /api/categories` respondió `200` y devolvió las cuatro categorías con `id` y `name`, ordenadas por nombre.
-  - `POST /api/questions` con `categoryId: 1` respondió `201` y devolvió `id`, `enunciado`, `categoryId` y opciones, sin `respuestaCorrecta`.
-  - El mismo POST con `categoryId: 999999` respondió `400 VALIDATION_ERROR` y el mensaje `La categoría indicada no existe`.
-  - Se actualizó la pregunta temporal con ID 17 mediante `PUT /api/questions/17`; respondió `200`, cambió a `categoryId: 3` y devolvió las cuatro opciones nuevas sin revelar la solución.
-  - Un PUT posterior de la pregunta 17 con `categoryId: 999999` respondió `400`; el GET posterior comprobó que seguían guardados el enunciado, categoría y opciones de la actualización válida.
-  - `DELETE /api/questions/17` respondió `204` y el GET posterior respondió `404 QUESTION_NOT_FOUND`. En Prisma Studio no quedó ninguna opción con `questionId: 17`.
-  - `npm.cmd run seed` creó la pregunta del seed que faltaba en la primera ejecución; la segunda encontró las seis preguntas y no creó duplicados.
-  - `npm.cmd run db:migrate:status` indicó 3 migraciones y `Database schema is up to date!`. `npm.cmd run typecheck` y `npm.cmd run build` terminaron correctamente.
+- Pruebas y resultados (repetidas tras la regeneración de la base, ver "Error y solución"):
+  - `GET /api/categories` respondió `200` con las cuatro categorías: Geografía (1), Matemáticas (2), Ciencia (3) e Historia (4).
+  - `POST /api/questions` con `categoryId: 2` respondió `201` y devolvió `id`, `enunciado`, `categoryId` y las cuatro opciones, sin `respuestaCorrecta`.
+  - El mismo POST con `categoryId: 999999` respondió `400 VALIDATION_ERROR` y el mensaje `La categoría indicada no existe`, sin crear la pregunta.
+  - `PUT` sobre la pregunta creada, cambiándola a `categoryId: 3`, respondió `200` y guardó la nueva categoría y las cuatro opciones.
+  - `DELETE` respondió `204`; el `GET` posterior respondió `404 QUESTION_NOT_FOUND` y no quedaron opciones huérfanas.
+  - `npm.cmd run db:migrate:status` informa `1 migration found` (`20261015124955_init_reto09`) y `Database schema is up to date!`. La base contiene 6 preguntas, 4 categorías y 24 opciones.
+  - `npm.cmd run seed` ejecutado dos veces: la segunda reconoció las seis preguntas existentes y no creó duplicados.
+  - `npm.cmd run typecheck` y `npm.cmd run build` terminaron correctamente.
+  - En el primer envío, sobre la base anterior, ya se probó el CRUD completo con la pregunta ID 17 (PUT 200, DELETE 204, GET 404 y referencias inválidas 400); la lógica del CRUD no cambió con la regeneración.
 
 - Error y solución:
   - La ruta de categorías se montó primero como `/api/categoies`, por lo que Swagger devolvía 404. Corregí la URL a `/api/categories`.
   - El ejemplo YAML del PUT tenía `categoryId` con una indentación distinta del resto de campos. Al alinearlo correctamente Swagger volvió a interpretar la documentación.
+  - La primera migración del reto eliminaba las columnas `options` y `solution` sin copiarlas a `Option` y añadía `categoryId` obligatorio sin asignarlo, por lo que fallaba en una base con preguntas del esquema anterior (reproducido por el tutor: `column "categoryId" of relation "Question" contains null values`). Tras comentarlo en el PR, se acordó con el tutor borrar todo y empezar de cero: se eliminaron las carpetas de las tres migraciones, se ejecutó `npx prisma migrate reset --force` (vacía tablas, datos y `_prisma_migrations`), se generó una única migración nueva desde `schema.prisma` con `npx prisma migrate dev --name init_reto09` y se recargaron los datos con `npm run seed`. No se hizo ningún `DELETE` o `TRUNCATE` a mano: la herramienta de Prisma resetea el esquema completo y deja el historial consistente con la base real.
+  - En Swagger, `PreguntaInput.categoryId` tenía `maximum: 1` mientras que Zod admite hasta `2147483647`. Alineé ambos límites y lo comprobé con POST y PUT usando categorías existentes (2 y 3).
 
 - Dudas:
-  - Duda resuelta: `npm.cmd run db:migrate:status` confirma que hay tres migraciones aplicadas y que el esquema de la base de desarrollo está actualizado. Esta comprobación valida el estado actual del esquema; las pruebas funcionales realizadas validaron el CRUD, las categorías y el borrado en cascada.
+  - `prisma migrate status` informa del estado del historial de migraciones; por sí solo no demuestra que los datos se hayan conservado. Para eso están las pruebas funcionales: en la base regenerada hay 6 preguntas, 4 categorías y 24 opciones, y el CRUD responde correctamente vía API.
+  - La migración original no conservaba los datos del esquema anterior; se acordó con el tutor regenerar el historial y la base desde cero en lugar de convertir los datos.
 
 - PR y correcciones:
-  - Pendiente de revisar el diff, crear el commit y abrir el PR hacia `develop`. No debo hacer merge ni empezar el reto 10 hasta la aprobación del tutor.
+  - PR abierto hacia `develop` desde `reto/09-relaciones` (commit base revisado: `a4216fa`). Tras la primera revisión corregí el límite de `categoryId` en Swagger y el registro del reto, y regeneré el historial de migraciones acordado con el tutor; las correcciones van en la misma rama y el mismo PR. No hago merge ni empiezo el reto 10 hasta la aprobación del tutor.
 
 ## 10 · Registra usuarios
 
