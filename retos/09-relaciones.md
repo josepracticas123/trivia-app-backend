@@ -10,15 +10,20 @@
 
 1. Crea Category y Option; cada pregunta pertenece a una categoría y tiene cuatro opciones ordenadas. La opción correcta es un dato interno.
 
-2. Prepara una migración que conserve las preguntas existentes y transforme las opciones. Si necesita SQL o varios pasos, hazlo con el tutor sobre una copia de desarrollo.
+2. Prepara una migración inicial que cree Category, Question y Option desde una base vacía y carga los datos de ejemplo con el seed. Por autorización expresa de Tomás, en este reto se reinició la base de prácticas y su historial tras los cambios manuales que los habían dejado desalineados; se acepta perder los datos anteriores. Comprueba que la nueva migración reproduce el esquema y que repetir el seed no duplica los datos.
 
 3. Añade GET /api/categories y adapta el CRUD a categoryId. Crear o sustituir opciones debe hacerse como una operación completa. Actualiza seed y Swagger.
+
+## Acuerdo del tutor para esta entrega
+
+Tomás autorizó expresamente reiniciar por completo la base de prácticas y regenerar el historial de migraciones para establecer una base consistente. Este acuerdo sustituye el requisito original de transformar y conservar las preguntas anteriores; la pérdida de esos datos de prácticas está aceptada y no bloquea el cierre por sí misma. No implica la aprobación del reto: siguen siendo necesarias las comprobaciones funcionales y la revisión del tutor.
+
+Es una excepción para recuperar este entorno. Desde este punto se conserva la nueva migración inicial y los siguientes cambios se incorporan mediante nuevas migraciones. Borrar tablas, archivos de migración o registros de `_prisma_migrations` no es el procedimiento habitual para resolver discrepancias.
 
 ## Comprueba tu entrega
 
 - [x] Las tablas y relaciones se pueden explicar y las referencias inválidas dan 400 sin crear datos incompletos.
-- [x] La migración conserva las preguntas y sus soluciones; está ensayada antes de aplicarla.
-  - Actualización tras la revisión: por indicación del tutor se regeneró el historial completo y la base desde cero (ver Registro). La nueva migración `20261015124955_init_reto09` genera el esquema vacío desde `schema.prisma` y los datos se recargan con el seed; no quedan datos antiguos que conservar.
+- [x] La migración inicial crea las tres tablas y sus relaciones desde una base vacía; el seed carga 4 categorías, 6 preguntas y 24 opciones y no duplica datos al repetirlo (autoevaluación del alumno; ver Registro).
 - [x] Cada pregunta tiene cuatro opciones distintas y exactamente una correcta.
 - [x] Una edición fallida no deja opciones borradas o a medio crear.
 - [x] Eliminar una pregunta no deja opciones huérfanas; lista y detalle mantienen un contrato documentado sin revelar la solución.

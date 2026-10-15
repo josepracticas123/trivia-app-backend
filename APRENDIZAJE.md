@@ -314,7 +314,7 @@ En cada reto anota:
   - En Swagger, `PreguntaInput.categoryId` tenía `maximum: 1` mientras que Zod admite hasta `2147483647`. Alineé ambos límites y lo comprobé con POST y PUT usando categorías existentes (2 y 3).
 
 - Dudas:
-  - `prisma migrate status` informa del estado del historial de migraciones; por sí solo no demuestra que los datos se hayan conservado. Para eso están las pruebas funcionales: en la base regenerada hay 6 preguntas, 4 categorías y 24 opciones, y el CRUD responde correctamente vía API.
+  - `prisma migrate status` informa del estado del historial de migraciones; por sí solo no demuestra que los datos se hayan conservado. Las pruebas funcionales registradas comprueban el funcionamiento y los datos nuevos: en la base regenerada hay 6 preguntas, 4 categorías y 24 opciones, y el CRUD responde correctamente vía API. No demuestran conservación de los datos anteriores: en este caso se eliminaron con autorización del tutor.
   - La migración original no conservaba los datos del esquema anterior; se acordó con el tutor regenerar el historial y la base desde cero en lugar de convertir los datos.
 
 - PR y correcciones:

@@ -41,6 +41,8 @@ La DB de prácticas debe estar separada de producción. El seed y cualquier rese
 - [Prisma con PostgreSQL](https://docs.prisma.io/docs/prisma-orm/quickstart/postgresql)
 - [PostgreSQL en Railway y conexión externa](https://docs.railway.com/databases/postgresql)
 
+> Nota posterior del tutor (reto 09): este registro describe la entrega del reto 06. Tras cambios manuales posteriores, Tomás autorizó reiniciar la base de prácticas y regenerar el historial con `20261015124955_init_reto09`. Las migraciones y el esquema descritos aquí son históricos; para reconstruir la versión actual, sigue el README y el reto 09.
+
 ## Registro de entrega y revisión
 
 Estado: **En revisión; faltan correcciones solicitadas por el tutor**. Marca checks solo cuando tengas evidencia y resultados concretos.
