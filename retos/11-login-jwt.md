@@ -21,7 +21,7 @@
 - [x] Email inexistente y contraseña incorrecta dan el mismo mensaje genérico con 401.
 - [x] JWT y respuestas no contienen contraseña ni hash.
 - [x] JWT_SECRET está solo en el entorno; .env.example explica cómo generarlo sin guardar un secreto real.
-- [ ] Puedo explicar que el contenido del JWT es legible y que su firma protege frente a modificaciones.
+- [x] Puedo explicar que el contenido del JWT es legible y que su firma protege frente a modificaciones.
 - [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
 - [x] He actualizado `APRENDIZAJE.md` y anotado las pruebas.
 - [x] He abierto el PR hacia `develop` sin hacer merge.

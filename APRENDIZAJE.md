@@ -394,11 +394,19 @@ En cada reto anota:
   Hash de contraseña
   Sirve para almacenar y comprobar contraseñas sin guardarlas directamente.
 
-Firma del JWT
-Permite detectar cambios y verificar que el token es auténtico.
+  Firma del JWT
+  Permite detectar cambios y verificar que el token es auténtico.
 
-Caducidad (exp)
-Limita el tiempo durante el cual se acepta el token.
+  Caducidad (exp)
+  Limita el tiempo durante el cual se acepta el token.
+
+¿Por qué el contenido del JWT es legible y su firma protege frente a modificaciones?
+Un JWT tiene tres partes: cabecera, contenido y firma.
+
+- Contenido legible: el contenido no está cifrado, así que cualquiera que tenga el token puede leer datos como el ID del usuario (sub) y la fecha de caducidad (exp). Por eso nunca debemos guardar contraseñas ni hashes dentro del token.
+- Firma: se genera usando el contenido del token y el secreto JWT_SECRET. Cuando el servidor verifica el token, comprueba que la firma sea válida. Si alguien modifica el contenido, la firma ya no coincide y el token se rechaza.
+- Caducidad (exp): indica cuándo deja de ser válido el token. En nuestro reto, dura una hora.
+- Decodificar y verificar: decodificar permite leer el contenido; verificar comprueba la firma y la caducidad.
 
 ## 12 · Protege las rutas
 
