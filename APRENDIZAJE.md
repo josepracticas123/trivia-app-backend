@@ -368,12 +368,45 @@ En cada reto anota:
 
 ## 11 · Inicia sesión
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- **Lo que he construido:** He creado el endpoint `POST /api/auth/login`. Valida los datos recibidos, comprueba las credenciales y devuelve un token JWT con una duración de una hora y los datos públicos del usuario.
+
+- **Conceptos y explicación propia:**
+  - Normalizo el email con Zod: elimino espacios exteriores y convierto el email a minúsculas.
+  - Compruebo la contraseña con Argon2, comparándola con el hash guardado en la base de datos.
+  - Uso JWT para identificar al usuario sin incluir su contraseña ni su hash en el token.
+  - El token contiene el ID del usuario en `sub` y caduca en una hora.
+  - `JWT_SECRET` es obligatorio y debe configurarse mediante una variable de entorno.
+  - Si el email no existe o la contraseña es incorrecta, devuelvo el mismo error genérico `401 INVALID_CREDENTIALS`.
+
+- **Pruebas y resultados:**
+  - Swagger: el login correcto devuelve `200`; las credenciales incorrectas devuelven `401`.
+  - Vitest: 2 pruebas superadas.
+  - Las pruebas verifican el JWT, el identificador `sub`, la duración y que no se expongan contraseñas ni hashes.
+  - `npm.cmd run typecheck`: correcto.
+  - `npm.cmd run build`: correcto, si has confirmado que terminó sin errores.
+
+- **Error y solución:** Durante las pruebas manuales apareció un error `500` por una URL de base de datos mal escrita. Corregí la configuración de `DATABASE_URL` y el login funcionó correctamente.
+
+- **Dudas:** Ninguna pendiente por ahora.
+
+- **PR y correcciones:** Pendiente de crear la pull request hacia `develop`. No se debe fusionar todavía.
+- **Nota: José**
+  Hash de contraseña
+  Sirve para almacenar y comprobar contraseñas sin guardarlas directamente.
+
+  Firma del JWT
+  Permite detectar cambios y verificar que el token es auténtico.
+
+  Caducidad (exp)
+  Limita el tiempo durante el cual se acepta el token.
+
+¿Por qué el contenido del JWT es legible y su firma protege frente a modificaciones?
+Un JWT tiene tres partes: cabecera, contenido y firma.
+
+- Contenido legible: el contenido no está cifrado, así que cualquiera que tenga el token puede leer datos como el ID del usuario (sub) y la fecha de caducidad (exp). Por eso nunca debemos guardar contraseñas ni hashes dentro del token.
+- Firma: se genera usando el contenido del token y el secreto JWT_SECRET. Cuando el servidor verifica el token, comprueba que la firma sea válida. Si alguien modifica el contenido, la firma ya no coincide y el token se rechaza.
+- Caducidad (exp): indica cuándo deja de ser válido el token. En nuestro reto, dura una hora.
+- Decodificar y verificar: decodificar permite leer el contenido; verificar comprueba la firma y la caducidad.
 
 ## 12 · Protege las rutas
 

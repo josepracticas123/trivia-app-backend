@@ -1,5 +1,13 @@
 import { app } from "./app.js";
 
+// El secreto es obligatorio para firmar los tokens JWT.
+// Si falta, detenemos el arranque para evitar usar una configuración insegura.
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    "Falta JWT_SECRET en las variables de entorno. Configúrala en el archivo .env.",
+  );
+}
+
 // Las variables de entorno son texto: convertimos PORT antes de usarlo.
 const port = Number(process.env.PORT ?? 3000);
 
