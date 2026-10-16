@@ -2,10 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import jwt from "jsonwebtoken";
-
-// Importamos las rutas que queremos probar.
 import { authRouter } from "../routes/auth.routes.js";
-import { loginUser } from "../services/auth.services.js";
+import { loginUser, registerUser } from "../services/auth.services.js";
+// Simulamos Prisma para no necesitar DATABASE_URL en los tests.
+vi.mock("../lib/prisma.js", () => ({
+  prisma: {
+    user: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+    },
+  },
+}));
 
 // Simulamos el servicio para no depender de la base de datos.
 vi.mock("../services/auth.services.js", () => ({
@@ -81,5 +88,27 @@ describe("POST /api/auth/login", () => {
 
     expect(contraseñaIncorrecta.body).toEqual(emailInexistente.body);
     expect(contraseñaIncorrecta.body.error.code).toBe("INVALID_CREDENTIALS");
+  });
+});
+
+/* Comprueba qu eun usuario no pueda convertirse en admin,
+ enviando ROLE: "ADMIN  */
+describe("POST /api/auth/register", () => {
+  //agrupamos pruebas relacioonadas con el registro de usuarios
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  // limpia pruebas para evitar que las llamadas anteriores no afecten a la siguiente
+  it("rechaza el registro si el cliente envía un rol", async () => {
+    // definimos que queremos ejecutar
+    const respuesta = await request(app).post("/api/auth/register").send({
+      email: "adminnuevo@email.com",
+      password: "secreta123",
+      role: "ADMIN",
+    });
+
+    expect(respuesta.status).toBe(400); // simula la petición http
+    expect(respuesta.body.error.code).toBe("VALIDATION_ERROR");
+    expect(registerUser).not.toHaveBeenCalled();
   });
 });

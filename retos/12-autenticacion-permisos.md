@@ -22,7 +22,7 @@
 - [ ] Registrarse enviando role se rechaza y no permite obtener privilegios.
 - [ ] Los endpoints públicos siguen funcionando sin token y Swagger permite probar ambos tipos.
 - [ ] Hay pruebas repetibles de un token válido, inválido y un usuario sin permiso.
-- [ ] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+- [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
 - [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor

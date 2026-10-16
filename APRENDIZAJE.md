@@ -410,12 +410,57 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
 
 ## 12 · Protege las rutas
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- **Lo que he construido:**
+  - Middleware de autenticación JWT para proteger las rutas privadas mediante el encabezado `Authorization: Bearer <token>`.
+  - Validación de la firma, el algoritmo permitido (`HS256`), la caducidad, el identificador `sub` y la existencia del usuario en la base de datos.
+  - Endpoint `GET /api/me` para consultar la información del usuario autenticado.
+  - Sistema de roles `USER` y `ADMIN`, con `USER` como valor predeterminado.
+  - Middleware de autorización para restringir la creación, actualización y eliminación de preguntas a usuarios con rol `ADMIN`.
+  - Acceso público a las consultas de preguntas y categorías.
+  - Configuración de Swagger para documentar la autenticación Bearer y la seguridad de las rutas protegidas.
+  - Validación del registro para impedir que el cliente envíe campos adicionales, como `role: "ADMIN"`.
+
+- **Conceptos y explicación propia:**
+  - **Autenticación:** verifica quién realiza una petición.
+  - **Autorización:** determina qué operaciones puede realizar el usuario autenticado.
+  - **JWT:** token firmado que permite autenticar peticiones sin enviar la contraseña en cada solicitud.
+  - **Bearer token:** forma de enviar el token en la cabecera `Authorization`.
+  - **401 Unauthorized:** indica que faltan credenciales válidas o que el token no es válido.
+  - **403 Forbidden:** indica que el usuario autenticado no tiene permisos suficientes.
+  - La autenticación y la autorización se comprueban en el servidor; no basta con ocultar opciones en la interfaz.
+  - Los permisos se aplican en las rutas protegidas mediante middleware.
+  - El registro público debe asignar el rol `USER` en el servidor y no permitir que el cliente se conceda privilegios de administrador.
+
+- **Pruebas y resultados:**
+  - `npm test`: **9 tests superados en 3 archivos**.
+  - Middleware JWT: pruebas de token ausente, token inválido, token caducado y usuario inexistente.
+  - Middleware de autorización: prueba de que un usuario `USER` recibe `403 Forbidden` al intentar realizar una operación de administrador.
+  - Controlador de autenticación: pruebas de inicio de sesión correcto, credenciales incorrectas y rechazo del registro cuando se envía `role: "ADMIN"`.
+  - Rutas de categorías: prueba automatizada que verifica que `GET /api/categories` es pública y devuelve las categorías esperadas. El servicio está simulado para no acceder a la base de datos real.
+  - `npm run typecheck`: finalizado sin errores en la última comprobación realizada.
+  - `npm run build`: compilación correcta en la comprobación anterior.
+  - Prueba manual de `GET /api/me`: devuelve la información del usuario autenticado.
+  - Prueba manual de permisos: un usuario `USER` recibe `403 Forbidden` al intentar crear una pregunta.
+  - Pruebas manuales con un usuario `ADMIN`: creación, actualización y eliminación de preguntas realizadas correctamente.
+
+- **Error y solución:**
+  - Se comprobó la necesidad de rechazar tokens asociados a usuarios que ya no existen en la base de datos.
+  - Se añadió un test que verifica que el middleware devuelve `401 Unauthorized` cuando el usuario del token no existe.
+  - Al crear el test de categorías, se detectó que `expect`, `describe` e `it` debían importarse desde `vitest`, no desde `node:test`. Se corrigió el import y las pruebas pasaron correctamente.
+  - El middleware verifica el JWT y consulta al usuario en la base de datos antes de permitir el acceso.
+
+- **Dudas y comprobaciones pendientes:**
+  - **¿Puede un usuario registrarse como administrador enviando `role: "ADMIN"`?** Se ha añadido un test que comprueba que el registro devuelve `400` y no llama al servicio de registro cuando se envía ese campo.
+  - **¿Puede un usuario normal modificar preguntas?** No. El middleware restringe esas operaciones al rol `ADMIN`; se ha comprobado manualmente que un usuario `USER` recibe `403` y existe un test automatizado para el middleware de autorización.
+  - **¿Qué ocurre si el token es inválido, caduca o pertenece a un usuario inexistente?** La petición se rechaza con `401`; estos casos tienen pruebas automatizadas.
+  - **¿Se pueden consultar preguntas y categorías sin autenticación?** Las categorías ya tienen una prueba automatizada. Queda pendiente automatizar las consultas públicas de preguntas y completar las pruebas de acceso a sus operaciones de escritura.
+  - **¿Cómo se verifica el funcionamiento?** Mediante tests automatizados, chequeo de tipos, compilación y pruebas manuales de autenticación y permisos.
+
+- **PR y correcciones:**
+  - Pendiente de completar las pruebas automatizadas de las rutas de preguntas y revisar la documentación de Swagger.
+  - Después, ejecutar de nuevo `npm test`, `npm run typecheck` y `npm run build`.
+  - Revisar los cambios, actualizar este documento con los resultados finales, hacer commit, publicar la rama y abrir una PR hacia `develop`.
+  - No fusionar la PR hasta completar la revisión.
 
 ## 13 · Juega una partida individual
 

@@ -104,7 +104,7 @@ export async function updateQuestionController(req: Request, res: Response) {
     return res.status(400).json({
       error: {
         code: "VALIDATION_ERROR",
-        message: "los datos enviados no son válidos",
+        message: "Los datos enviados no son válidos",
       },
     });
   }

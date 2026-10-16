@@ -15,6 +15,13 @@ const swaggerDefinition = {
   },
   // Esquemas reutilizables por las diferentes rutas de la API.
   components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+      },
+    },
     schemas: {
       // Representa los datos para crear una cuenta.
       RegistroEntrada: {

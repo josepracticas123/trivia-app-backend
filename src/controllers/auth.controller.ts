@@ -3,6 +3,7 @@ import { registerUser } from "../services/auth.services.js";
 import { registerSchema } from "../schemas/register.schema.js";
 import { loginUser } from "../services/auth.services.js";
 import { loginSchema } from "../schemas/login.schema.js";
+import { prisma } from "../lib/prisma.js";
 // Nos permite crear tokens JWT firmados.
 import jwt from "jsonwebtoken";
 
@@ -99,4 +100,31 @@ export async function loginController(req: Request, res: Response) {
       email: usuario.email,
     },
   });
+}
+
+/* Devuelve los datos públicos del usuario, middleware guarda el ID en userId */
+
+export async function meController(req: Request, res: Response) {
+  //Buscamos el usuario usando el ID validado por middleware.
+  const usuario = await prisma.user.findUnique({
+    where: { id: res.locals.userId },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+    },
+  });
+  // Si el usuario y ano existe rechazaremos la petición
+  // Si el usuario ya no existe, rechazamos la petición.
+  if (!usuario) {
+    return res.status(401).json({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "El usuario ya no existe",
+      },
+    });
+  }
+
+  // Devolvemos solo información pública.
+  return res.status(200).json({ user: usuario });
 }
