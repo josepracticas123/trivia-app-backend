@@ -1,18 +1,13 @@
 // Este archivo contiene la configuración principal de la aplicación Express,
 // incluyendo las rutas y middlewares necesarios para manejar las peticiones HTTP.
-
 import express from "express";
-
 // Importa Swagger UI para mostrar la documentación de la API en /docs.
 import swaggerUi from "swagger-ui-express";
-
 // Importa la especificación OpenAPI generada desde swagger.ts.
 import { swaggerSpec } from "./docs/swagger.js";
-
 import { questionRouter } from "./routes/questions.routes.js";
-
 import { categoryRouter } from "./routes/categories.routes.js";
-
+import { authRouter } from "./routes/auth.routes.js";
 // Importa los middlewares de manejo de errores.
 import {
   jsonErrorMiddleware,
@@ -438,6 +433,54 @@ app.use("/api/questions", questionRouter);
  *               $ref: "#/components/schemas/Error"
  */
 app.use("/api/categories", categoryRouter);
+// Ruta de registro de usuarios.
+/**
+ * @openapi
+ * /api/auth/register:
+ *   post:
+ *     summary: Registrar un usuario nuevo
+ *     description: Crea una cuenta con email y contraseña. La contraseña se guarda como hash y nunca se devuelve.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/RegistroEntrada"
+ *     responses:
+ *       201:
+ *         description: Usuario creado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/UsuarioPublico"
+ *       400:
+ *         description: Email inválido, contraseña corta o campos inesperados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: VALIDATION_ERROR
+ *                 message: Los datos enviados no son válidos
+ *       409:
+ *         description: El email ya está registrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: EMAIL_ALREADY_EXISTS
+ *                 message: El email ya está registrado
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
+app.use("/api/auth", authRouter);
 
 // Si ninguna ruta anterior coincide con la petición,
 // devolvemos un error 404.

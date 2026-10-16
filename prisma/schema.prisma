@@ -6,13 +6,13 @@ datasource db {
   provider = "postgresql"
 }
 
-
+//Tabla de categorías,
 model Category {
   id        Int        @id @default(autoincrement())
   name      String     @unique
   questions Question[]
 }
-
+// Tabla de preguntas.
 model Question {
   id         Int      @id @default(autoincrement())
   statement  String
@@ -20,7 +20,7 @@ model Question {
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   choices    Option[]
 }
-
+// Tabla para opciones
 model Option {
   id         Int      @id @default(autoincrement())
   text       String
@@ -31,4 +31,12 @@ model Option {
 
   @@unique([questionId, position])
   @@unique([questionId, text])
+}
+
+// Modelo de tabla para usuario.
+model user{
+  id Int @id @default(autoincrement())
+  email String @unique
+  passwordHash String
+  createdAt DateTime @default(now())
 }

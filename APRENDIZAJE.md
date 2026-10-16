@@ -322,12 +322,49 @@ En cada reto anota:
 
 ## 10 · Registra usuarios
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- Lo que he construido:
+  - Modelo `User` en Prisma (`id`, `email` único, `passwordHash`, `createdAt`) con su migración.
+  - Endpoint `POST /api/auth/register`: valida con Zod, normaliza el email (elimina espacios exteriores y convierte a minúsculas), exige una contraseña de al menos 8 caracteres y devuelve únicamente `id` y `email`.
+  - Servicio de registro con **Argon2**: genera el hash de la contraseña y guarda el usuario; si el email ya existe, devuelve `null` y el controlador responde con `409 EMAIL_ALREADY_EXISTS`.
+  - Validación del formato del email mediante Zod y rechazo de campos adicionales.
+  - Documentación Swagger con los esquemas `RegistroEntrada` y `UsuarioPublico`, probada desde `/docs` con respuestas `201`, `400` y `409`.
+
+- Conceptos y explicación propia:
+  - **Hash ≠ cifrar**: el hash es una transformación de una sola vía; no se puede recuperar directamente la contraseña original a partir del hash. El cifrado sí permite recuperar el contenido mediante la clave correspondiente. Para almacenar contraseñas se utiliza un algoritmo de hash adecuado.
+  - La restricción `@unique` del email en la base de datos es la que evita duplicados de verdad. Comprobar el email antes del `INSERT` no basta porque dos peticiones podrían llegar a la vez (condición de carrera). El servicio interpreta el error `P2002` de Prisma para traducirlo a `409 EMAIL_ALREADY_EXISTS`.
+  - Argon2 genera y utiliza una sal, que queda representada en el hash almacenado. No hay que inventar una sal manualmente ni utilizar algoritmos rápidos como SHA-256 para almacenar contraseñas.
+  - El email se normaliza con `trim` y minúsculas para que `" Juan@EMAIL.com "` y `"juan@email.com"` se traten como la misma dirección. La contraseña no se modifica.
+  - El `select: { id: true, email: true }` del servicio limita los datos devueltos y evita que `passwordHash` se exponga en la respuesta al cliente.
+
+- Pruebas y resultados:
+  - Registro válido con `{"email":"  Juan@EMAIL.com ","password":"secreta123"}` → `201 Created`, con el email normalizado y únicamente los campos públicos.
+  - Email válido con espacios exteriores y mayúsculas (`"  PruebaOctubre16b@Example.com  "`) → `201 Created`, devolviendo `pruebaoctubre16b@example.com`.
+  - Mismo email con otra grafía (`JUAN@email.com`) → `409 EMAIL_ALREADY_EXISTS`; no se crea un segundo usuario con la misma dirección.
+  - Email malformado `a@b..com` → `400 VALIDATION_ERROR`.
+  - Email malformado `.jose@example.com` → `400 VALIDATION_ERROR`.
+  - Contraseña inferior a 8 caracteres, incluida una contraseña de 6 caracteres → `400 VALIDATION_ERROR`.
+  - Campo adicional no permitido, por ejemplo `"admin": true` → `400 VALIDATION_ERROR`.
+  - JSON malformado → `400 INVALID_JSON`.
+  - Respuesta pública comprobada: contiene `id` y `email`, sin exponer la contraseña original ni el hash.
+  - `npm.cmd run typecheck` y `npm.cmd run build` terminaron correctamente.
+
+- Error y solución:
+  - Escribí `passwordHas` en vez de `passwordHash`. Corregí el esquema de Prisma y generé de nuevo el cliente.
+  - La migración `20261015143436_fix_user_column` se aplicó en Railway el 15/10/2026 a las 16:34:38. Al revisar su SQL, comprobé que elimina la columna `passwordHas` y crea `passwordHash`; no renombra la columna ni copia los datos de la anterior.
+  - El usuario de prueba se creó después de aplicar la migración. Por tanto, su hash no existía en la columna eliminada antes de la migración y no se perdió el hash de ese usuario por ese cambio. Esta conclusión se limita al usuario de prueba cuya fecha se comprobó.
+  - No se ha restablecido la base de datos ni se ha eliminado o modificado el historial de migraciones. Como la migración ya está aplicada en Railway, no se deben modificar las migraciones existentes ni ejecutar nuevas operaciones sobre la base de datos sin consultar previamente con el tutor.
+  - `prisma.user` aparecía en rojo porque el cliente de Prisma estaba desactualizado tras el cambio de esquema. Se soluciona con `npm run db:generate` y, si es necesario, reiniciando el servidor de TypeScript de VS Code.
+  - El código de error del `409` se unificó a `EMAIL_ALREADY_EXISTS` en el controlador y la documentación.
+
+- Dudas:
+  - Diferencia entre hash y cifrado → resuelta: el hash no es reversible directamente; el cifrado permite recuperar el contenido con la clave.
+  - Por qué comprobar el email antes del `INSERT` no basta → resuelta mediante la restricción única y el tratamiento del error `P2002`.
+  - Cómo verificar un hash → Argon2 permite comprobar una contraseña candidata con `argon2.verify`, sin publicar el hash ni la contraseña en logs o documentación.
+  - Cómo actuar ante una migración ya aplicada → no modificar Railway ni el historial de migraciones sin acordar previamente con el tutor el procedimiento adecuado.
+
+- PR y correcciones:
+  - PR abierto hacia `develop` desde `reto/10-registro`, pendiente de revisión y aprobación del tutor.
+  - No hacer merge ni comenzar el reto 11 hasta recibir la aprobación del tutor.
 
 ## 11 · Inicia sesión
 
