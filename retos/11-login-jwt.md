@@ -1,3 +1,4 @@
+
 # 11 · Inicia sesión
 
 **Tu misión:** Comprueba las credenciales y entrega un token firmado con caducidad. El token permitirá identificar al usuario en los siguientes retos.
@@ -16,13 +17,14 @@
 
 ## Comprueba tu entrega
 
-- [ ] Credenciales correctas devuelven 200 y un token firmado con caducidad.
-- [ ] Email inexistente y contraseña incorrecta dan el mismo mensaje genérico con 401.
-- [ ] JWT y respuestas no contienen contraseña ni hash.
-- [ ] JWT_SECRET está solo en el entorno; .env.example explica cómo generarlo sin guardar un secreto real.
+- [x] Credenciales correctas devuelven 200 y un token firmado con caducidad.
+- [x] Email inexistente y contraseña incorrecta dan el mismo mensaje genérico con 401.
+- [x] JWT y respuestas no contienen contraseña ni hash.
+- [x] JWT_SECRET está solo en el entorno; .env.example explica cómo generarlo sin guardar un secreto real.
 - [ ] Puedo explicar que el contenido del JWT es legible y que su firma protege frente a modificaciones.
-- [ ] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
-- [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
+- [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+- [x] He actualizado `APRENDIZAJE.md` y anotado las pruebas.
+- [x] He abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
 
@@ -41,10 +43,13 @@ Mantén esta primera versión con token de acceso: al caducar se inicia sesión 
 Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
 
 - PR y commit revisado: pendiente.
-- Prueba correcta (petición/acción y resultado): pendiente.
-- Prueba inválida o fallo (petición/acción y resultado): pendiente.
-- Comandos y resultados: pendiente.
-- Dudas o correcciones: pendiente.
+- Prueba correcta (petición/acción y resultado): `POST /api/auth/login` en Swagger devuelve `200`, un token JWT con duración de 3600 segundos y los datos públicos del usuario.
+- Prueba inválida o fallo (petición/acción y resultado): contraseña incorrecta y email inexistente devuelven `401` con el mismo mensaje genérico `El email o contraseña son incorrectos`.
+- Comandos y resultados:
+  - `npm.cmd test`: 2 pruebas superadas.
+  - `npm.cmd run typecheck`: correcto.
+  - `npm.cmd run build`: confirmar resultado.
+- Dudas o correcciones: durante las pruebas apareció un error `500` por una URL de base de datos mal escrita. Se corrigió `DATABASE_URL` y el login funcionó.
 - Revisión y aprobación del tutor: pendiente.
 - Merge en `develop`: pendiente.
 

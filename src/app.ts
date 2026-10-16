@@ -433,6 +433,40 @@ app.use("/api/questions", questionRouter);
  *               $ref: "#/components/schemas/Error"
  */
 app.use("/api/categories", categoryRouter);
+
+/**
+ * @openapi
+ * /api/auth/login:
+ *   post:
+ *     summary: Iniciar sesión
+ *     description: Comprueba el email y la contraseña y devuelve un token JWT.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/RegistroEntrada"
+ *     responses:
+ *       200:
+ *         description: Inicio de sesión correcto
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 expiresIn:
+ *                   type: integer
+ *                   example: 3600
+ *                 user:
+ *                   $ref: "#/components/schemas/UsuarioPublico"
+ *       400:
+ *         description: Datos no válidos
+ *       401:
+ *         description: Email o contraseña incorrectos
+ */
+
 // Ruta de registro de usuarios.
 /**
  * @openapi
