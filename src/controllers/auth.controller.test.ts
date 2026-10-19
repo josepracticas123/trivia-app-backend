@@ -91,10 +91,10 @@ describe("POST /api/auth/login", () => {
   });
 });
 
-/* Comprueba qu eun usuario no pueda convertirse en admin,
- enviando ROLE: "ADMIN  */
+/* Comprobamos que un usuario no pueda convertirse en admin
+ enviando role: "ADMIN". */
 describe("POST /api/auth/register", () => {
-  //agrupamos pruebas relacioonadas con el registro de usuarios
+  // Agrupamos pruebas relacionadas con el registro de usuarios.
   beforeEach(() => {
     vi.clearAllMocks();
   });

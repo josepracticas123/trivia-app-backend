@@ -91,7 +91,7 @@ export async function authMiddleware(
     return next(error);
   }
 }
-// Comprueba qu eel usuario autenticado tenga el rol ADMIN
+// Comprueba que el usuario autenticado tenga el rol ADMIN.
 
 /**
  * Comprueba que el usuario autenticado tenga el rol ADMIN.

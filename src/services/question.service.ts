@@ -1,6 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 
-// Creamos el primer servicio. para la consulta select.
+// Creamos el primer servicio, para la consulta select.
 export async function getQuestions() {
   return prisma.question.findMany({
     select: {
@@ -20,8 +20,8 @@ export async function getQuestions() {
   });
 }
 
-/* Buscamos la sola ppegunta por su ID, si no existe, dvuelv null
-limiamos cons elect los campos que recibe el controlador y evitamos traer la respuesta correcta
+/* Buscamos la pregunta por su ID; si no existe, devuelve null.
+Limpiamos con select los campos que recibe el controlador y evitamos traer la respuesta correcta.
 */
 
 export async function getQuestionById(id: number) {
@@ -46,7 +46,7 @@ export async function getQuestionById(id: number) {
 
 /* El controlador nos mandará los datos válidos al servicio
 el servicio adaptará los nombres públicos a los nombres de la base
-statement, options y guardará la respuesta corrdecta. */
+statement, options y guardará la respuesta correcta. */
 
 export async function createQuestion(input: {
   enunciado: string;
@@ -85,7 +85,7 @@ export async function createQuestion(input: {
   });
 }
 
-/* Función para actualizar las pregunta
+/* Función para actualizar la pregunta.
 El servicio actualiza los campos y comprueba cuántas filas cambió. Si no encontró ese ID, 
 devuelve null; si lo encontró, 
 vuelve a buscar la pregunta con getQuestionById, que devuelve solo los campos públicos.*/
@@ -143,7 +143,7 @@ export async function deleteQuestion(id: number) {
 }
 
 /* Comprueba si hay una categoría por ID. 
-Devuelve truye si prisma la encuentra, y false si no existe */
+Devuelve true si Prisma la encuentra, y false si no existe. */
 export async function categoryExist(categoryId: number) {
   const category = await prisma.category.findUnique({ // Busca el campo único
     where: { id: categoryId },

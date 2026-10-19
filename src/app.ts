@@ -270,6 +270,18 @@ app.use("/api/questions", questionRouter);
  *                   error:
  *                     code: VALIDATION_ERROR
  *                     message: Los datos enviados no son válidos
+ *       401:
+ *         description: Falta el token o el token no es válido.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       403:
+ *         description: El usuario autenticado no tiene rol ADMIN.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
  *       500:
  *         description: Error interno del servidor
  *         content:
@@ -342,6 +354,18 @@ app.use("/api/questions", questionRouter);
  *                   error:
  *                     code: VALIDATION_ERROR
  *                     message: Los datos enviados no son válidos
+ *       401:
+ *         description: Falta el token o el token no es válido.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       403:
+ *         description: El usuario autenticado no tiene rol ADMIN.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
  *       404:
  *         description: La pregunta no existe
  *         content:
@@ -406,6 +430,18 @@ app.use("/api/questions", questionRouter);
  *               error:
  *                 code: QUESTION_NOT_FOUND
  *                 message: Pregunta no encontrada
+ *       401:
+ *         description: Falta el token o el token no es válido.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       403:
+ *         description: El usuario autenticado no tiene rol ADMIN.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
  *       500:
  *         description: Error interno del servidor
  *         content:
@@ -542,7 +578,7 @@ app.use("/api/auth", authRouter);
  *               type: object
  *               properties:
  *                 user:
- *                   $ref: "#/components/schemas/UsuarioPublico"
+ *                   $ref: "#/components/schemas/UsuarioAutenticado"
  *       401:
  *         description: Token ausente, inválido o caducado
  *         content:

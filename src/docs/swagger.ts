@@ -4,7 +4,6 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 // Librería que genera el documento OpenAPI a partir de los comentarios @openapi.
 import swaggerJSDoc from "swagger-jsdoc";
-import { maximum, minimum, required } from "zod/mini";
 // Configuración principal de OpenAPI.
 const swaggerDefinition = {
   openapi: "3.0.0",
@@ -60,111 +59,133 @@ const swaggerDefinition = {
         required: ["id", "email"],
       },
 
+      // Datos que puede consultar el propio usuario autenticado.
+      // Incluye el rol porque GET /api/me lo devuelve.
+      UsuarioAutenticado: {
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            example: 1,
+          },
+          email: {
+            type: "string",
+            example: "juan@email.com",
+          },
+          role: {
+            type: "string",
+            enum: ["USER", "ADMIN"],
+            example: "USER",
+          },
+        },
+        required: ["id", "email", "role"],
+      },
+
       // Representa una categoría disponible para asignar a la pregunta.
       Categoria: {
-        type: "object",
-        properties: {
-          id: {
-            type: "integer",
-            example: 1,
-          },
+      type: "object",
+      properties: {
+        id: {
+          type: "integer",
+          example: 1,
+        },
 
-          name: {
-            type: "string",
-            example: "Geografía",
-          },
+        name: {
+          type: "string",
+          example: "Geografía",
         },
-        required: ["id", "name"],
       },
-      // Representa una pregunta que podemos devolver al cliente.
-      // Importante: NO contiene respuestaCorrecta.
-      PreguntaPublica: {
-        type: "object",
-        properties: {
-          id: {
-            type: "integer",
-            example: 1,
-          },
-          categoryId: {
-            type: "integer",
-            example: 1,
-          },
-          enunciado: {
-            type: "string",
-            example: "¿Cuál es la capital de España?",
-          },
-          opciones: {
-            type: "array",
-            minItems: 4,
-            maxItems: 4,
-            items: {
-              type: "string",
-            },
-            example: ["Madrid", "Barcelona", "Valencia", "Sevilla"],
-          },
+      required: ["id", "name"],
+    },
+    // Representa una pregunta que podemos devolver al cliente.
+    // Importante: NO contiene respuestaCorrecta.
+    PreguntaPublica: {
+      type: "object",
+      properties: {
+        id: {
+          type: "integer",
+          example: 1,
         },
-        required: ["id", "enunciado", "categoryId", "opciones"],
-      },
-      // Representa los datos necesarios para crear o actualizar una pregunta.
-      // Aquí SÍ incluimos respuestaCorrecta porque forma parte de la entrada.
-      PreguntaInput: {
-        description:
-          "El servidor elimina los espacios al principio y al final de enunciado y opciones. Los textos no pueden quedar vacíos después de esa limpieza y las opciones deben ser distintas después de limpiarlas.",
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          categoryId: {
-            type: "integer",
-            minimum: 1,
-            maximum: 2147483647,
+        categoryId: {
+          type: "integer",
+          example: 1,
+        },
+        enunciado: {
+          type: "string",
+          example: "¿Cuál es la capital de España?",
+        },
+        opciones: {
+          type: "array",
+          minItems: 4,
+          maxItems: 4,
+          items: {
+            type: "string",
           },
-          enunciado: {
+          example: ["Madrid", "Barcelona", "Valencia", "Sevilla"],
+        },
+      },
+      required: ["id", "enunciado", "categoryId", "opciones"],
+    },
+    // Representa los datos necesarios para crear o actualizar una pregunta.
+    // Aquí SÍ incluimos respuestaCorrecta porque forma parte de la entrada.
+    PreguntaInput: {
+      description:
+        "El servidor elimina los espacios al principio y al final de enunciado y opciones. Los textos no pueden quedar vacíos después de esa limpieza y las opciones deben ser distintas después de limpiarlas.",
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        categoryId: {
+          type: "integer",
+          minimum: 1,
+          maximum: 2147483647,
+        },
+        enunciado: {
+          type: "string",
+          minLength: 1,
+          example: "¿Cuál es la capital de España?",
+        },
+        opciones: {
+          type: "array",
+          minItems: 4,
+          maxItems: 4,
+          uniqueItems: true,
+          items: {
             type: "string",
             minLength: 1,
-            example: "¿Cuál es la capital de España?",
           },
-          opciones: {
-            type: "array",
-            minItems: 4,
-            maxItems: 4,
-            uniqueItems: true,
-            items: {
-              type: "string",
-              minLength: 1,
-            },
-            example: ["Madrid", "Barcelona", "Valencia", "Sevilla"],
-          },
-          respuestaCorrecta: {
-            type: "integer",
-            minimum: 0,
-            maximum: 3,
-            example: 0,
-          },
+          example: ["Madrid", "Barcelona", "Valencia", "Sevilla"],
         },
-        required: ["categoryId", "enunciado", "opciones", "respuestaCorrecta"],
-      },
-      // Representa el formato de los errores que devuelve nuestra API.
-      Error: {
-        type: "object",
-        properties: {
-          error: {
-            type: "object",
-            properties: {
-              code: {
-                type: "string",
-                example: "VALIDATION_ERROR",
-              },
-              message: {
-                type: "string",
-                example: "Los datos enviados no son válidos",
-              },
-            },
-            required: ["code", "message"],
-          },
+        respuestaCorrecta: {
+          type: "integer",
+          minimum: 0,
+          maximum: 3,
+          example: 0,
         },
-        required: ["error"],
       },
+      required: ["categoryId", "enunciado", "opciones", "respuestaCorrecta"],
     },
+    // Representa el formato de los errores que devuelve nuestra API.
+    Error: {
+      type: "object",
+      properties: {
+        error: {
+          type: "object",
+          properties: {
+            code: {
+              type: "string",
+              example: "VALIDATION_ERROR",
+            },
+            message: {
+              type: "string",
+              example: "Los datos enviados no son válidos",
+            },
+          },
+          required: ["code", "message"],
+        },
+      },
+      required: ["error"],
+    },
+  },
   },
 };
 

@@ -16,5 +16,5 @@ export const loginSchema = z
       .string()
       .min(8, "La contraseña debe tener al menos 8 caracteres"),
   })
-  // Rechazamos propiedades diferentes a las qu eno tenemos definidas arriba.
+  // Rechazamos propiedades diferentes a las que no tenemos definidas arriba.
   .strict();

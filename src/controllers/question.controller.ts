@@ -10,7 +10,7 @@ import {
 import { questionIdSchema } from "../schemas/question-id.schema.js";
 import { questionSchema } from "../schemas/question.schema.js";
 
-// Controlador que llama al servicio y adapta los datos de la BBDD el formato publico
+// Controlador que llama al servicio y adapta los datos de la BBDD al formato público.
 export async function getQuestionsController(_req: Request, res: Response) {
   const preguntas = await getQuestions();
 
@@ -23,7 +23,7 @@ export async function getQuestionsController(_req: Request, res: Response) {
   return res.json(preguntasPublicas);
 }
 
-//Validamos los datos con el objeto existente, si el ID no cumple las reglas respodnemos un error.
+// Validamos los datos con el objeto existente; si el ID no cumple las reglas, respondemos con un error.
 export async function getQuestionByIdController(req: Request, res: Response) {
   const resultadoValidacion = questionIdSchema.safeParse(req.params);
 
@@ -35,7 +35,7 @@ export async function getQuestionByIdController(req: Request, res: Response) {
       },
     });
   }
-  // Con  ésto lo convertimos  a number.
+  // Con esto lo convertimos a number.
   const id = Number(resultadoValidacion.data.id);
 
   // Pedimos buscar esa pregunta.
@@ -58,12 +58,12 @@ export async function getQuestionByIdController(req: Request, res: Response) {
     opciones: pregunta.choices.map((choice) => choice.text),
   });
 }
-/* Con req.body es el JSOn qu eenvía el cliente, si safeParse lo valida. 
-   si no son los datos correctos mandamos el error.*/
+/* Con req.body es el JSON que envía el cliente; si safeParse lo valida, 
+   si no son los datos correctos mandamos el error. */
 export async function createQuestionController(req: Request, res: Response) {
   const resultadoValidacion = questionSchema.safeParse(req.body);
 
-  //El if termina cuando los resultados son invalidos.
+  // El if termina cuando los resultados son inválidos.
   if (!resultadoValidacion.success) {
     return res.status(400).json({
       error: {
@@ -82,7 +82,7 @@ export async function createQuestionController(req: Request, res: Response) {
       },
     });
   }
-  // Para devolver la pregunta sin la solución. Se ejecuta con los datos qu epasaron la validación.
+  // Para devolver la pregunta sin la solución. Se ejecuta con los datos que pasaron la validación.
   const nuevaPregunta = await createQuestion(resultadoValidacion.data);
 
   //Añadimos la verificación de que la pregunta se creó.
@@ -134,7 +134,7 @@ export async function updateQuestionController(req: Request, res: Response) {
     });
   }
 
-  //Pasamos el servicio ID valido sino devolveremos el error.
+  // Pasamos el ID válido al servicio; si no, devolveremos el error.
   const preguntaActualizada = await updateQuestion(
     id,
     resultadoValidacionJson.data,
@@ -170,9 +170,9 @@ export async function deleteQuestionController(req: Request, res: Response) {
   }
   // Después de confirmar que es un ID válido, esta línea lo convierte a número para prisma.
   const id = Number(resultadoValidacionId.data.id);
-  //El servicio intenta borrar la pregunta y devuelve true si la encontró o false si no existía
+  //El servicio intenta borrar la pregunta y devuelve true si la encontró o false si no existía.
   const eliminada = await deleteQuestion(id);
-  //Si no se borró ninguna fila, respondemos 404 porque ese ID no existe
+  //Si no se borró ninguna fila, respondemos 404 porque ese ID no existe.
   if (!eliminada) {
     return res.status(404).json({
       error: {
@@ -181,6 +181,6 @@ export async function deleteQuestionController(req: Request, res: Response) {
       },
     });
   }
-  //si el servicio borró la pregunta respondemos 204 No Content
+  //Si el servicio borró la pregunta, respondemos 204 No Content.
   return res.status(204).send();
 }

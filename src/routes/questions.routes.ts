@@ -13,13 +13,13 @@ import {
 
 export const questionRouter = Router();
 
-/*Mapeamos todas la srutas que teníamos en el archivo de app, para eliminar de 
+/* Mapeamos todas las rutas que teníamos en el archivo de app, para eliminar de 
  aquel archivo las funciones y repartirlas en los diferentes archivos de
- servicios, controlador*/
+ servicios y controladores. */
 questionRouter.get("/", getQuestionsController);
 questionRouter.get("/:id", getQuestionByIdController);
 
-// Así solo un ADMIN autenticado sera el qu epodrá crear, modificar, eliminar.
+// Así solo un ADMIN autenticado será el que podrá crear, modificar y eliminar.
 questionRouter.post(
   "/",
   authMiddleware,

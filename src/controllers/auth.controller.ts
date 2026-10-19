@@ -7,9 +7,9 @@ import { prisma } from "../lib/prisma.js";
 // Nos permite crear tokens JWT firmados.
 import jwt from "jsonwebtoken";
 
-// registra el Usuari nuevo, valida y pide el has al servicio y da respuesta 201 o 409.
+// Registra el usuario nuevo, valida y pide el hash al servicio; devuelve 201 o 409.
 export async function registerController(req: Request, res: Response) {
-  // validaremos el cuerpo con zod, si fallase dara error 400
+  // Validaremos el cuerpo con Zod; si fallase, dará error 400.
   const resultadoValidacion = registerSchema.safeParse(req.body);
 
   if (!resultadoValidacion.success) {
@@ -21,14 +21,14 @@ export async function registerController(req: Request, res: Response) {
     });
   }
 
-  /* El servicio hara el hash, guarda el usuario y devuelve el id y el email,
-    o null si el email ya existe */
+  /* El servicio hará el hash, guarda el usuario y devuelve el id y el email,
+    o null si el email ya existe. */
   const usuario = await registerUser(
     resultadoValidacion.data.email, // email normalizado por zod, trim + minúsculas
     resultadoValidacion.data.password, // tal cual lo escribe el usuario.
   );
 
-  // Si el servicio devuelve null o email duplicado error 409
+  // Si el servicio devuelve null o email duplicado, error 409.
   if (!usuario) {
     return res.status(409).json({
       error: {
@@ -45,12 +45,12 @@ export async function registerController(req: Request, res: Response) {
   });
 }
 
-//Gestión de inicio de sesión de usuario
+// Gestión del inicio de sesión de usuario.
 export async function loginController(req: Request, res: Response) {
   //Comprobamos que el email y la contraseña tienen el formato deseado.
   const resultadoValidacion = loginSchema.safeParse(req.body);
 
-  // si los datos no son válidos respondemos ocn un error 400.
+  // Si los datos no son válidos, respondemos con un error 400.
   if (!resultadoValidacion.success) {
     return res.status(400).json({
       error: {
