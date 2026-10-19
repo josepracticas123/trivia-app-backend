@@ -42,11 +42,13 @@ export async function authMiddleware(
       algorithms: ["HS256"],
     });
 
-    // Comprobamos que el token tenga un ID de usuario válido.
+    /* Un token firmado sin exp nunca caducaría, así que lo rechazamos.
+       payload puede ser string o JwtPayload; descartamos el string y
+       comprobamos que exp exista y sea un número finito. */
     if (
       typeof payload === "string" ||
-      typeof payload.sub !== "string" ||
-      !/^[1-9]\d*$/.test(payload.sub)
+      typeof payload.exp !== "number" ||
+      !Number.isFinite(payload.exp)
     ) {
       return res.status(401).json({
         error: {
@@ -56,9 +58,31 @@ export async function authMiddleware(
       });
     }
 
+    // Comprobamos que el token tenga un ID de usuario válido.
+    if (typeof payload.sub !== "string" || !/^[1-9]\d*$/.test(payload.sub)) {
+      return res.status(401).json({
+        error: {
+          code: "INVALID_TOKEN",
+          message: "El token no es válido",
+        },
+      });
+    }
+    // Convertimos sub a número y validamos el rango ANTES de tocar la base.
+    const userId = Number(payload.sub);
+
+    // Comprueba que el id esté dentro del rango del campo Int de la base.
+    if(!Number.isSafeInteger(userId) || userId < 1 || userId > 2147483647){
+      return res.status(401).json({
+        error:{
+          code: "INVALID_TOKEN",
+          message: "El token no es válido",
+        }
+      })
+    }
+
     // Buscamos al usuario en la base de datos mediante su ID.
     const usuario = await prisma.user.findUnique({
-      where: { id: Number(payload.sub) },
+      where: { id: userId },
       select: { id: true },
     });
 
@@ -91,7 +115,6 @@ export async function authMiddleware(
     return next(error);
   }
 }
-// Comprueba que el usuario autenticado tenga el rol ADMIN.
 
 /**
  * Comprueba que el usuario autenticado tenga el rol ADMIN.

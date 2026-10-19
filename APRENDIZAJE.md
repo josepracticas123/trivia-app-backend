@@ -432,8 +432,8 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
   - El registro público debe asignar el rol `USER` en el servidor y no permitir que el cliente se conceda privilegios de administrador.
 
 - **Pruebas y resultados:**
-  - `npm test`: **13 tests superados en 4 archivos**.
-  - Middleware JWT: pruebas de token ausente, token inválido, token caducado y usuario inexistente.
+  - `npm test`: **18 tests superados en 4 archivos**.
+  - Middleware JWT: pruebas de token ausente, token inválido, token caducado, token sin `exp`, `sub` fuera de rango (0, 2147483648 y un valor que excede los enteros seguros) y usuario inexistente. También una prueba de token válido que continúa y guarda el identificador.
   - Middleware de autorización: prueba de que un usuario `USER` recibe `403 Forbidden` al intentar realizar una operación de administrador.
   - Controlador de autenticación: pruebas de inicio de sesión correcto, credenciales incorrectas y rechazo del registro cuando se envía `role: "ADMIN"`.
   - Rutas de categorías: prueba automatizada que verifica que `GET /api/categories` es pública y devuelve las categorías esperadas. El servicio está simulado para no acceder a la base de datos real.
@@ -450,6 +450,9 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
   - Se comprobó la necesidad de rechazar tokens asociados a usuarios que ya no existen en la base de datos.
   - Se añadió un test que verifica que el middleware devuelve `401 Unauthorized` cuando el usuario del token no existe.
   - Al crear el test de categorías, se detectó que `expect`, `describe` e `it` debían importarse desde `vitest`, no desde `node:test`. Se corrigió el import y las pruebas pasaron correctamente.
+  - **Corrección de la segunda revisión del tutor (commit `5fcae49`):** `jwt.verify` solo comprueba la caducidad si el token trae `exp`, por lo que un token firmado sin ese campo era aceptado. Ahora se exige que `exp` exista y sea un número finito, con su prueba (401 sin consultar la base).
+  - **Corrección de rango de `sub`:** la regex rechazaba textos, pero permitía valores como `2147483648` que llegaban a la consulta de Prisma. Ahora `sub` se convierte a número y se comprueba que sea un entero seguro entre 1 y 2147483647 antes de tocar la base, con pruebas para `0`, fuera de rango y un valor que excede los enteros seguros.
+  - **Mejora de tipado:** se añadió `src/types/express.d.ts` para declarar `res.locals.userId` como `number` mediante declaration merging; TypeScript avisa si se escribe mal el campo o se le asigna un valor que no es un número, sin usar `any` ni casts.
   - El middleware verifica el JWT y consulta al usuario en la base de datos antes de permitir el acceso.
 
 - **Dudas y comprobaciones pendientes:**
@@ -461,6 +464,7 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
   - **¿Cómo se verifica el funcionamiento?** Mediante tests automatizados, chequeo de tipos, compilación y pruebas manuales de autenticación y permisos.
 
 - **PR y correcciones:**
+  - **Segunda revisión del tutor** sobre el commit `5fcae49`: pidió exigir `exp` en el token, validar el rango de `sub` antes de consultar Prisma y, como mejora opcional, tipar `res.locals`. Los tres puntos están aplicados en la misma rama, con pruebas nuevas (de 13 a 18) y `npm test`, `npm run typecheck` y `npm run build` en verde tras los cambios.
   - Revisión final de Swagger completada: `POST /api/questions` documenta 201/400/401/403/500, `PUT /api/questions/{id}` 200/400/401/403/404/500 y `DELETE /api/questions/{id}` 204/400/401/403/404/500. Sin token responden 401 y ya no aparece la etiqueta "Undocumented".
   - Comandos finales ejecutados de nuevo tras la revisión de Swagger: `npm test` (13 tests superados en 4 archivos), `npm run typecheck` y `npm run build`, todos correctos.
   - Corrección de mantenimiento en la misma rama: erratas de comentarios en `src/`, solo texto, sin cambios de lógica.
