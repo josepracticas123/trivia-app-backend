@@ -461,10 +461,10 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
   - **¿Cómo se verifica el funcionamiento?** Mediante tests automatizados, chequeo de tipos, compilación y pruebas manuales de autenticación y permisos.
 
 - **PR y correcciones:**
-  - Completadas las pruebas automatizadas de las rutas de preguntas. Pendiente de la revisión final de Swagger y de ejecutar los comandos finales antes de abrir la PR.
-  - Después, ejecutar de nuevo `npm test`, `npm run typecheck` y `npm run build`.
-  - Revisar los cambios, actualizar este documento con los resultados finales, hacer commit, publicar la rama y abrir una PR hacia `develop`.
-  - No fusionar la PR hasta completar la revisión.
+  - Revisión final de Swagger completada: `POST /api/questions` documenta 201/400/401/403/500, `PUT /api/questions/{id}` 200/400/401/403/404/500 y `DELETE /api/questions/{id}` 204/400/401/403/404/500. Sin token responden 401 y ya no aparece la etiqueta "Undocumented".
+  - Comandos finales ejecutados de nuevo tras la revisión de Swagger: `npm test` (13 tests superados en 4 archivos), `npm run typecheck` y `npm run build`, todos correctos.
+  - Corrección de mantenimiento en la misma rama: erratas de comentarios en `src/`, solo texto, sin cambios de lógica.
+  - Rama `reto/12-autenticacion-permisos` publicada y PR hacia `develop` (commit base `1322480`); las correcciones van en la misma rama y el mismo PR. No fusionar hasta completar la revisión del tutor.
 
 ## 13 · Juega una partida individual
 
