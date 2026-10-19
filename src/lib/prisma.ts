@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 // Importamos el adaptador que permite a Prisma comunicarse con PostgreSQL utilizando el driver "pg".
 import { PrismaPg } from "@prisma/adapter-pg";
 
-// Obtenemos la URL de conexión desde una variable de entorno osea la URL de postgre sql.
+// Obtenemos la URL de conexión desde una variable de entorno, o sea la URL de PostgreSQL.
 // La URL real está en el archivo .env y no la escribimos aquí.
 const connectionString = process.env.DATABASE_URL;
 
@@ -14,7 +14,7 @@ if (!connectionString) {
 }
 
 // Creamos el adaptador de PostgreSQL utilizando nuestra URL de conexión.
-// Es el adaptador qu econecta ese cliente con postgresql mediante el driver de pg
+// Es el adaptador que conecta ese cliente con PostgreSQL mediante el driver pg.
 const adapter = new PrismaPg({
   connectionString,
 
@@ -22,7 +22,7 @@ const adapter = new PrismaPg({
 
 // Creamos una instancia de PrismaClient.
 // Este será nuestro cliente para trabajar con PostgreSQL.
-//realiza  u ofrece las consultas
+// Realiza u ofrece las consultas.
 export const prisma = new PrismaClient({
   adapter,
 });

@@ -8,6 +8,8 @@ import { swaggerSpec } from "./docs/swagger.js";
 import { questionRouter } from "./routes/questions.routes.js";
 import { categoryRouter } from "./routes/categories.routes.js";
 import { authRouter } from "./routes/auth.routes.js";
+import { authMiddleware } from "./middlewares/auth.middleware.js";
+import { meController } from "./controllers/auth.controller.js";
 // Importa los middlewares de manejo de errores.
 import {
   jsonErrorMiddleware,
@@ -225,6 +227,8 @@ app.use("/api/questions", questionRouter);
  *   post:
  *     summary: Crear una pregunta
  *     description: Crea una nueva pregunta de trivia.
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -266,6 +270,18 @@ app.use("/api/questions", questionRouter);
  *                   error:
  *                     code: VALIDATION_ERROR
  *                     message: Los datos enviados no son válidos
+ *       401:
+ *         description: Falta el token o el token no es válido.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       403:
+ *         description: El usuario autenticado no tiene rol ADMIN.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
  *       500:
  *         description: Error interno del servidor
  *         content:
@@ -285,6 +301,8 @@ app.use("/api/questions", questionRouter);
  *   put:
  *     summary: Actualizar una pregunta
  *     description: Sustituye los datos de una pregunta existente.
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -336,6 +354,18 @@ app.use("/api/questions", questionRouter);
  *                   error:
  *                     code: VALIDATION_ERROR
  *                     message: Los datos enviados no son válidos
+ *       401:
+ *         description: Falta el token o el token no es válido.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       403:
+ *         description: El usuario autenticado no tiene rol ADMIN.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
  *       404:
  *         description: La pregunta no existe
  *         content:
@@ -365,6 +395,8 @@ app.use("/api/questions", questionRouter);
  *   delete:
  *     summary: Eliminar una pregunta
  *     description: Elimina una pregunta existente por su ID.
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -398,6 +430,18 @@ app.use("/api/questions", questionRouter);
  *               error:
  *                 code: QUESTION_NOT_FOUND
  *                 message: Pregunta no encontrada
+ *       401:
+ *         description: Falta el token o el token no es válido.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       403:
+ *         description: El usuario autenticado no tiene rol ADMIN.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
  *       500:
  *         description: Error interno del servidor
  *         content:
@@ -515,6 +559,34 @@ app.use("/api/categories", categoryRouter);
  *               $ref: "#/components/schemas/Error"
  */
 app.use("/api/auth", authRouter);
+
+// Devuelve los datos del usuario autenticado
+/**
+ * @openapi
+ * /api/me:
+ *   get:
+ *     summary: Obtener el usuario autenticado
+ *     description: Devuelve los datos del usuario identificado por el token JWT.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Datos del usuario autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: "#/components/schemas/UsuarioAutenticado"
+ *       401:
+ *         description: Token ausente, inválido o caducado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
+app.get("/api/me", authMiddleware, meController);
 
 // Si ninguna ruta anterior coincide con la petición,
 // devolvemos un error 404.

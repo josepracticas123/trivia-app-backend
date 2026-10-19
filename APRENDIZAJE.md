@@ -410,12 +410,65 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
 
 ## 12 · Protege las rutas
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- **Lo que he construido:**
+  - Middleware de autenticación JWT para proteger las rutas privadas mediante el encabezado `Authorization: Bearer <token>`.
+  - Validación de la firma, el algoritmo permitido (`HS256`), la caducidad, el identificador `sub` y la existencia del usuario en la base de datos.
+  - Endpoint `GET /api/me` para consultar la información del usuario autenticado.
+  - Sistema de roles `USER` y `ADMIN`, con `USER` como valor predeterminado.
+  - Middleware de autorización para restringir la creación, actualización y eliminación de preguntas a usuarios con rol `ADMIN`.
+  - Acceso público a las consultas de preguntas y categorías.
+  - Configuración de Swagger para documentar la autenticación Bearer y la seguridad de las rutas protegidas.
+  - Validación del registro para impedir que el cliente envíe campos adicionales, como `role: "ADMIN"`.
+
+- **Conceptos y explicación propia:**
+  - **Autenticación:** verifica quién realiza una petición.
+  - **Autorización:** determina qué operaciones puede realizar el usuario autenticado.
+  - **JWT:** token firmado que permite autenticar peticiones sin enviar la contraseña en cada solicitud.
+  - **Bearer token:** forma de enviar el token en la cabecera `Authorization`.
+  - **401 Unauthorized:** indica que faltan credenciales válidas o que el token no es válido.
+  - **403 Forbidden:** indica que el usuario autenticado no tiene permisos suficientes.
+  - La autenticación y la autorización se comprueban en el servidor; no basta con ocultar opciones en la interfaz.
+  - Los permisos se aplican en las rutas protegidas mediante middleware.
+  - El registro público debe asignar el rol `USER` en el servidor y no permitir que el cliente se conceda privilegios de administrador.
+
+- **Pruebas y resultados:**
+  - `npm test`: **18 tests superados en 4 archivos**.
+  - Middleware JWT: pruebas de token ausente, token inválido, token caducado, token sin `exp`, `sub` fuera de rango (0, 2147483648 y un valor que excede los enteros seguros) y usuario inexistente. También una prueba de token válido que continúa y guarda el identificador.
+  - Middleware de autorización: prueba de que un usuario `USER` recibe `403 Forbidden` al intentar realizar una operación de administrador.
+  - Controlador de autenticación: pruebas de inicio de sesión correcto, credenciales incorrectas y rechazo del registro cuando se envía `role: "ADMIN"`.
+  - Rutas de categorías: prueba automatizada que verifica que `GET /api/categories` es pública y devuelve las categorías esperadas. El servicio está simulado para no acceder a la base de datos real.
+  - Rutas de preguntas: prueba automatizada de que `GET /api/questions` es pública y devuelve el formato público correcto.
+  - Rutas de preguntas protegidas: `POST /api/questions` sin token devuelve `401`; con JWT válido de un `USER` devuelve `403`; con JWT válido de un `ADMIN` crea la pregunta y devuelve `201`.
+  - Las pruebas de rutas simulan Prisma y los servicios necesarios, por lo que no dependen de la base de datos real.
+  - `npm run typecheck`: finalizado sin errores en la última comprobación realizada.
+  - `npm run build`: compilación correcta en la comprobación anterior.
+  - Prueba manual de `GET /api/me`: devuelve la información del usuario autenticado.
+  - Prueba manual de permisos: un usuario `USER` recibe `403 Forbidden` al intentar crear una pregunta.
+  - Pruebas manuales con un usuario `ADMIN`: creación, actualización y eliminación de preguntas realizadas correctamente.
+
+- **Error y solución:**
+  - Se comprobó la necesidad de rechazar tokens asociados a usuarios que ya no existen en la base de datos.
+  - Se añadió un test que verifica que el middleware devuelve `401 Unauthorized` cuando el usuario del token no existe.
+  - Al crear el test de categorías, se detectó que `expect`, `describe` e `it` debían importarse desde `vitest`, no desde `node:test`. Se corrigió el import y las pruebas pasaron correctamente.
+  - **Corrección de la segunda revisión del tutor (commit `5fcae49`):** `jwt.verify` solo comprueba la caducidad si el token trae `exp`, por lo que un token firmado sin ese campo era aceptado. Ahora se exige que `exp` exista y sea un número finito, con su prueba (401 sin consultar la base).
+  - **Corrección de rango de `sub`:** la regex rechazaba textos, pero permitía valores como `2147483648` que llegaban a la consulta de Prisma. Ahora `sub` se convierte a número y se comprueba que sea un entero seguro entre 1 y 2147483647 antes de tocar la base, con pruebas para `0`, fuera de rango y un valor que excede los enteros seguros.
+  - **Mejora de tipado:** se añadió `src/types/express.d.ts` para declarar `res.locals.userId` como `number` mediante declaration merging; TypeScript avisa si se escribe mal el campo o se le asigna un valor que no es un número, sin usar `any` ni casts.
+  - El middleware verifica el JWT y consulta al usuario en la base de datos antes de permitir el acceso.
+
+- **Dudas y comprobaciones pendientes:**
+  - **¿Puede un usuario registrarse como administrador enviando `role: "ADMIN"`?** Se ha añadido un test que comprueba que el registro devuelve `400` y no llama al servicio de registro cuando se envía ese campo.
+  - **¿Puede un usuario normal modificar preguntas?** No. El middleware restringe esas operaciones al rol `ADMIN`; se ha comprobado manualmente que un usuario `USER` recibe `403` y existe un test automatizado para el middleware de autorización.
+  - **¿Qué ocurre si el token es inválido, caduca o pertenece a un usuario inexistente?** La petición se rechaza con `401`; estos casos tienen pruebas automatizadas.
+  - **¿Se pueden consultar preguntas y categorías sin autenticación?** Sí. Hay pruebas automatizadas para ambas rutas públicas. Las operaciones de escritura de preguntas requieren autenticación y rol `ADMIN`.
+  - **¿Cómo se prepara un administrador local?** El procedimiento está documentado en el README: se registra un usuario normal y el tutor modifica su rol localmente en la base de datos, sin guardar contraseñas ni tokens en Git.
+  - **¿Cómo se verifica el funcionamiento?** Mediante tests automatizados, chequeo de tipos, compilación y pruebas manuales de autenticación y permisos.
+
+- **PR y correcciones:**
+  - **Segunda revisión del tutor** sobre el commit `5fcae49`: pidió exigir `exp` en el token, validar el rango de `sub` antes de consultar Prisma y, como mejora opcional, tipar `res.locals`. Los tres puntos están aplicados en la misma rama, con pruebas nuevas (de 13 a 18) y `npm test`, `npm run typecheck` y `npm run build` en verde tras los cambios.
+  - Revisión final de Swagger completada: `POST /api/questions` documenta 201/400/401/403/500, `PUT /api/questions/{id}` 200/400/401/403/404/500 y `DELETE /api/questions/{id}` 204/400/401/403/404/500. Sin token responden 401 y ya no aparece la etiqueta "Undocumented".
+  - Comandos finales ejecutados de nuevo tras la revisión de Swagger: `npm test` (13 tests superados en 4 archivos), `npm run typecheck` y `npm run build`, todos correctos.
+  - Corrección de mantenimiento en la misma rama: erratas de comentarios en `src/`, solo texto, sin cambios de lógica.
+  - Rama `reto/12-autenticacion-permisos` publicada y PR hacia `develop` (commit base `1322480`); las correcciones van en la misma rama y el mismo PR. No fusionar hasta completar la revisión del tutor.
 
 ## 13 · Juega una partida individual
 

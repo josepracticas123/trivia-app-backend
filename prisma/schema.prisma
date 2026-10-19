@@ -33,10 +33,17 @@ model Option {
   @@unique([questionId, text])
 }
 
+// Roles disponibles para los usuarios.
+enum Role {
+  USER
+  ADMIN
+}
+
 // Modelo de tabla para usuario.
 model user{
   id Int @id @default(autoincrement())
   email String @unique
   passwordHash String
   createdAt DateTime @default(now())
+  role Role @default(USER)
 }

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-//Validamos los datso qu ellegan del POST, api/auth/register.
+// Validamos los datos que llegan al POST api/auth/register.
 export const registerSchema = z
 
   /* El email se normaliza, quitamos los espacios de los extremos y lo pasamos a minúsculas*/

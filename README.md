@@ -296,6 +296,28 @@ Antes de cada PR, los tipos y la compilación deben pasar. Swagger y las pruebas
 
 Hasta el reto 12, el CRUD todavía no tiene permisos: úsalo solo en desarrollo local. A partir de ahí, registro y login son públicos, las consultas del catálogo son públicas, el CRUD es de ADMIN y partidas e historial exigen sesión y pertenencia.
 
+### Crear un administrador local
+
+El registro público siempre crea usuarios con el rol `USER`. El cliente no puede elegir el rol ni convertirse en administrador enviando `role: "ADMIN"`.
+
+Para preparar un administrador solo en desarrollo local:
+
+1. Registra un usuario mediante `POST /api/auth/register`.
+2. Ejecuta en la base de datos local:
+
+```sql
+-- Solo para desarrollo local.
+-- No crea ni modifica contraseñas.
+UPDATE "user"
+SET role = 'ADMIN'
+WHERE email = 'admin-local@ejemplo.com';
+```
+
+3. Inicia sesión de nuevo mediante `POST /api/auth/login`.
+4. Usa el token recibido en las rutas privadas con `Authorization: Bearer <token>`.
+
+No subas al repositorio contraseñas, tokens ni el archivo `.env`.
+
 En el reto 06 se añadirán instrucciones comprobadas para PostgreSQL en Railway, Prisma y sus versiones. Para trabajar desde el PC, el valor de `DATABASE_PUBLIC_URL` de Railway se guarda como `DATABASE_URL` en el `.env` local; las direcciones privadas `railway.internal` se usan entre servicios de Railway. En el 21 se documentarán URLs, variables, migraciones y recuperación. Desarrollo y pruebas no usarán la DB de producción. Los secretos se configuran en el alojamiento; el frontend solo recibe la URL pública de la API.
 
 El despliegue propuesto usa Railway para backend y DB y Vercel para frontend. Revisaremos disponibilidad, costes y planes desde el reto 06 y de nuevo antes del despliegue final: no se presupone alojamiento gratuito permanente. No ejecutes un seed de práctica ni un reset contra producción.
