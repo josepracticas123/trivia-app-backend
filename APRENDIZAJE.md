@@ -472,12 +472,61 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
 
 ## 13 · Juega una partida individual
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- **Lo que he construido:**
+  - Migración con los modelos `Game`, `GamePlayer`, `GameQuestion`, `GameChoice`, `Answer` y el enum `GameStatus` (`ACTIVE`/`FINISHED`), con participantes relacionados aunque sea una partida individual para poder ampliar después.
+  - Copia congelada de las preguntas: `GameQuestion` guarda el enunciado, la posición y la solución (posición de la opción correcta), y las opciones se copian a `GameChoice`. Editar o borrar una pregunta del catálogo no altera una partida existente.
+  - `POST /api/games`: crea la partida con cinco preguntas aleatorias sin repetición, el participante y las copias en una sola transacción; devuelve 409 si hay menos de cinco preguntas en el catálogo.
+  - `GET /api/games/:id`: estado público construido campo a campo (nunca `res.json(game)`), con la cadena 400 (id) → 404 (no existe) → 403 (no participas) → 200, y sin exponer `solution`, `questionId` ni respuestas.
+  - `POST /api/games/:id/answers`: esquema zod `answerSchema` con `.strict()`, servicio `submitAnswer` con cuatro bloques de comprobaciones (partida y permisos, pregunta y turno, opción perteneciente, cálculo y guardado) y un controlador que traduce cada resultado del servicio a su código HTTP mediante una tabla.
+  - Cierre automático: al registrar la quinta respuesta, la misma transacción cambia el estado a `FINISHED` y rellena `finishedAt`.
+  - Swagger: schemas `PartidaEstado`, `RespuestaInput` y `RespuestaResultado`, y bloques `@openapi` para los tres endpoints de partidas.
+
+- **Conceptos y explicación propia:**
+  - **Reglas de negocio en el servidor:** el cliente solo envía `gameQuestionId` y `choiceId`; el backend decide si es correcta (`choice.position === solution`) y calcula la puntuación. El cliente nunca envía ni modifica puntos.
+  - **Datos públicos frente a internos:** `solution` es interno y nunca sale en respuestas; el GET se construye campo a campo para que sea imposible filtrarlo sin darnos cuenta.
+  - **ID de catálogo frente a ID de partida:** `questionId` es el original; `gameQuestionId` es la copia que vive dentro de la partida y es la que recibe el endpoint de respuestas.
+  - **Turno:** la pregunta en turno es la primera sin responder (posiciones 0..4), por eso se comprueba antes de guardar.
+  - **Tipo resultado:** `submitAnswer` devuelve `{ ok: true, ... }` o `{ ok: false, error }` en lugar de lanzar excepciones; el controlador ramifica con `if (!resultado.ok)` y una tabla error → HTTP.
+  - **Transacción de Prisma:** guardar la respuesta y cerrar la partida es "todo o nada".
+  - **Duplicados:** `@@unique([gameQuestionId])` impide dos respuestas para la misma pregunta; en el uso normal el turno la detecta antes (409 igualmente) y `P2002` es la defensa ante dos peticiones simultáneas (carrera).
+  - **`.strict()` de zod:** rechaza campos extra como `isCorrect` o `score`. Aunque los dejara pasar, el controlador solo lee los dos campos y la puntuación la calcula el servidor: defensa en profundidad.
+  - **404, 403 y 409 con significado:** 404 = el recurso no existe, 403 = existe y no es tuyo, 409 = el estado actual de la partida no permite esa acción (turno, duplicado o cerrada).
+  - **Swagger es un documento, la vista solo lo pinta:** cada bloque `@openapi` aporta una operación, el orden de los bloques es el orden en la vista y los cambios requieren reiniciar el servidor.
+
+- **Pruebas y resultados:**
+  - `npm run typecheck` y `npm run build`: sin errores.
+  - `npm test`: **18 tests superados en 4 archivos** (la parte anterior sigue funcionando).
+  - `GET /api/games/1` con token: 200 con cinco preguntas sin repetición (posiciones 0..4), cuatro opciones cada una y sin `solution` en ninguna parte.
+  - `GET /api/games/1` sin token: 401. Con id 99999: 404. Con el token de un usuario ajeno: 403.
+  - `POST /api/games/1/answers` (7 pruebas manuales desde Swagger):
+    1. Acierto a la pregunta 1 → 200 `isCorrect: true, score: 1`.
+    2. Responder la pregunta 3 estando en la 1 → 409 `WRONG_TURN`.
+    3. Opción que pertenece a otra pregunta → 400 `CHOICE_NOT_IN_QUESTION`.
+    4. Repetir la pregunta 1 → 409 (no suma dos veces).
+    5. Enviar `isCorrect: true` en el body → 400 `VALIDATION_ERROR` (`.strict()`).
+    6. Quinta respuesta → 200 `finished: true, score: 5`.
+    7. Responder con la partida cerrada → 409 `GAME_FINISHED`.
+  - Swagger refleja el contrato: los tres endpoints de partidas documentados y probados desde `/docs`.
+
+- **Error y solución:**
+  - Al pegar el servicio, un typo en el tipo (`GAME_NOT_FOUN`) y la ausencia del `return` final produjeron los errores TS2820 y TS2366; corregidos los dos.
+  - TypeScript solo enseñó el error de sintaxis (una `}` de más al final del fichero) hasta que lo arreglé: los errores de sintaxis esconden los de tipos.
+  - Un `}` cerraba el `if` antes del `return`, con lo que la traducción de errores quedaba fuera del bloque; movido el cierre y corregido también el typo `messaje`.
+  - El IDE insertó solo `import { finished } from "stream"` al escribir `finished`; era un import inútil y se borró.
+  - Trampa silenciosa: `resultadoValidacion.succes` (sin la s) habría devuelto 400 en todas las peticiones porque `undefined` se negaba como `true`.
+  - El test de "campo prohibido" devolvió 200 en lugar de 400: el comentario decía "sin campos extra" pero faltaba la llamada `.strict()`; añadida y repetida la prueba con 400 correcto.
+  - Un token de Swagger caducó y daba 401 con "Falta el token": el curl no llevaba la cabecera `Authorization`; se resolvió volviendo a autorizar con un token nuevo.
+  - Corrección de errata: `FORBIDEN` → `FORBIDDEN` en el código de error 403 del `GET /api/games/:id`, igualándolo al del endpoint de respuestas.
+
+- **Dudas:**
+  - **¿Por qué guardar una copia de las preguntas?** Porque `GameQuestion`/`GameChoice` son un snapshot: si mañana se edita o se borra una pregunta del catálogo, la partida en curso conserva su enunciado, sus opciones y su solución tal y como se jugaron.
+  - **¿Puede el cliente hacer trampa enviando puntuación?** No: el esquema `.strict()` rechaza los campos extra, el controlador solo pasa los dos ids y el servicio calcula `isCorrect` y `score`.
+  - **¿Responder dos veces suma dos puntos?** No: la segunda recibe 409 (el turno ya pasó) y, además, `@@unique([gameQuestionId])` lo impide a nivel de base de datos.
+  - **¿El rol ADMIN afecta a las partidas?** No: las rutas de juegos solo usan `authMiddleware`; el `adminMiddleware` está reservado para el CRUD de preguntas.
+  - **¿Qué pasa al completar la quinta?** La transacción cambia el estado a `FINISHED` y cualquier respuesta posterior recibe 409 `GAME_FINISHED`.
+
+- **PR y correcciones:**
+  - Rama `reto/13-partida-individual` con todo el trabajo del reto; PR hacia `develop` sin hacer merge; las correcciones del tutor irán en la misma rama y el mismo PR.
 
 ## 14 · Consulta tu historial
 

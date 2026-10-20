@@ -1,5 +1,11 @@
 import { prisma } from "../lib/prisma.js";
 
+// Para reconocer los errores conocidos de prisma( el p2002 de duplicados)
+import { Prisma } from "@prisma/client";
+
+// Preguntas qu etiene cada aprtida individual.
+export const PREGUNTAS_POR_PARTIDA = 5;
+
 /* Devuelve 5 preguntas aleatorias del catálogo con sus opciones ordenadas. */
 export async function getRandomQuestions() {
   // $queryRaw ejecuta SQL directo; necesitamos CAST porque los enteros
@@ -72,3 +78,123 @@ export async function createGame(userId: number) {
     return game;
   });
 }
+/* Busca un apartida por su id con participantes, preguntas y opciones.
+Devulve null si no existe - el controlador responde 404 */
+export async function getGameById(gameId: number) {
+  return prisma.game.findUnique({
+    // devuelve todos los campos de gamequestion y solution el controlador decide que es público
+    where: { id: gameId },
+    include: {
+      // Participantes: solo el userId nos sirve para comprobar ¿es tuya?.
+      players: { select: { userId: true } },
+      //Las 5 preguntas en orden de juego (posicion de 0..4), con sus opciones.
+      questions: {
+        orderBy: { position: "asc" },
+        include: { choices: { orderBy: { position: "asc" } } },
+      },
+    },
+  });
+}
+
+/* Registra la respuesta de un jugador y actualiza la partida. */
+export type SubmitAnswerResult =
+  | { ok: true; isCorrect: boolean; score: number; finished: boolean }
+  | {
+      ok: false;
+      error:
+        | "GAME_NOT_FOUND"        // la partida no existe
+        | "NOT_PARTICIPANT"       // existe pero no participas
+        | "GAME_FINISHED"         // ya está cerrada
+        | "QUESTION_NOT_IN_GAME"  // esa copia de pregunta no es de ESTA partida
+        | "WRONG_TURN"            // no le toca a esa pregunta
+        | "CHOICE_NOT_IN_QUESTION"// la opción no pertenece a esa pregunta
+        | "ALREADY_ANSWERED";     // respuesta duplicada (carrera)
+    };
+
+/* Registra la respuesta de un jugador y actualiza la partida. */
+export async function submitAnswer(
+  gameId: number,
+  userId: number,
+  gameQuestionId: number,
+  choiceId: number,
+): Promise<SubmitAnswerResult> {
+  // BLOQUE 1: cargar la partida con participantes, preguntas y respuestas 
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    include: {
+      players: { select: { userId: true } },
+      questions: {
+        orderBy: { position: "asc" },               // en orden de juego
+        include: { answers: { select: { isCorrect: true } } },
+      },
+    },
+  });
+
+  if (!game) return { ok: false, error: "GAME_NOT_FOUND" };          // → 404
+  if (!game.players.some((player) => player.userId === userId))
+    return { ok: false, error: "NOT_PARTICIPANT" };                  // → 403
+  if (game.status === "FINISHED")
+    return { ok: false, error: "GAME_FINISHED" };                    // → 409
+
+  //  BLOQUE 2: la pregunta debe ser de ESTA partida y estar en SU TURNO 
+  const question = game.questions.find((q) => q.id === gameQuestionId);
+  if (!question)
+    return { ok: false, error: "QUESTION_NOT_IN_GAME" };             // → 404
+
+  // El turno es la PRIMERA pregunta sin responder (las van en position 0..4).
+  const turno = game.questions.find((q) => q.answers.length === 0);
+  if (!turno) return { ok: false, error: "GAME_FINISHED" };          // defensa extra
+  if (turno.id !== gameQuestionId)
+    return { ok: false, error: "WRONG_TURN" };                       // → 409
+
+  // BLOQUE 3: la opción debe existir y pertenecer a ESA pregunta
+  const choice = await prisma.gameChoice.findUnique({ where: { id: choiceId } });
+  if (!choice || choice.gameQuestionId !== gameQuestionId)
+    return { ok: false, error: "CHOICE_NOT_IN_QUESTION" };           // → 400
+
+  // BLOQUE 4: calcular el punto (¡en el servidor!) y guardar todo
+
+  // La solución copiada es la POSICIÓN de la opción correcta (0..3).
+  // El backend decide: el cliente no envía ni modifica esto.
+  const isCorrect = choice.position === question.solution;
+
+  // Puntos que ya llevas: suma de respuestas correctas anteriores.
+  const previousScore = game.questions.reduce(
+    (total, q) => total + q.answers.filter((a) => a.isCorrect).length,
+    0,
+  );
+  const score = previousScore + (isCorrect ? 1 : 0);
+
+  // ¿Esta era la quinta respuesta?
+  const answered = game.questions.filter((q) => q.answers.length > 0).length;
+  const finished = answered + 1 === PREGUNTAS_POR_PARTIDA;
+
+  try {
+    // Transacción: se guarda la respuesta y, si era la quinta, se cierra
+    // la partida. O se hace todo, o no se hace nada.
+    await prisma.$transaction(async (tx) => {
+      await tx.answer.create({
+        data: { gameQuestionId, choiceId, isCorrect },
+      });
+      if (finished) {
+        await tx.game.update({
+          where: { id: gameId },
+          data: { status: "FINISHED", finishedAt: new Date() },
+        });
+      }
+    });
+  } catch (error) {
+    // Última línea de defensa: tu tabla Answer tiene @@unique([gameQuestionId]),
+    // así que un duplicado revienta con P2002 → 409 y NUNCA suma dos veces.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { ok: false, error: "ALREADY_ANSWERED" };
+    }
+    // Otros errores de BBDD → suben solos al middleware global (Express 5).
+    throw error;
+  }
+
+  return { ok: true, isCorrect, score, finished };
+}
+
+
+

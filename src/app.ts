@@ -10,6 +10,9 @@ import { categoryRouter } from "./routes/categories.routes.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { authMiddleware } from "./middlewares/auth.middleware.js";
 import { meController } from "./controllers/auth.controller.js";
+// Router de partidas (reto 13).
+import { gameRouter } from "./routes/games.routes.js";
+
 // Importa los middlewares de manejo de errores.
 import {
   jsonErrorMiddleware,
@@ -560,6 +563,157 @@ app.use("/api/categories", categoryRouter);
  */
 app.use("/api/auth", authRouter);
 
+// Montamos el router bajo /api/games.
+/**
+ * @openapi
+ * /api/games:
+ *   post:
+ *     summary: Crea una partida individual
+ *     description: Crea una partida de cinco preguntas aleatorias para el usuario autenticado.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Partida creada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                   example: 1
+ *                 status:
+ *                   type: string
+ *                   enum: [ACTIVE, FINISHED]
+ *                   example: ACTIVE
+ *       401:
+ *         description: Token ausente, inválido o caducado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       409:
+ *         description: No hay cinco preguntas disponibles
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
+app.use("/api/games", gameRouter);
+
+// Documentación Swagger del estado de la partida.
+/**
+ * @openapi
+ * /api/games/{id}:
+ *   get:
+ *     summary: Obtiene el estado de una partida
+ *     description: Devuelve las preguntas y opciones si el usuario autenticado participa en la partida. Nunca incluye las soluciones.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Id de la partida.
+ *     responses:
+ *       200:
+ *         description: Estado de la partida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/PartidaEstado"
+ *       400:
+ *         description: El id no es un número entero válido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       401:
+ *         description: Token ausente, inválido o caducado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       403:
+ *         description: El usuario no participa en la partida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       404:
+ *         description: La partida no existe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
+
+// Documentación Swagger de responder una pregunta de la partida.
+/**
+ * @openapi
+ * /api/games/{id}/answers:
+ *   post:
+ *     summary: Responde la pregunta en turno de la partida
+ *     description: Registra la respuesta del usuario autenticado. El backend comprueba el turno, que la opción pertenece a la pregunta y calcula la puntuación; nunca acepta puntuación enviada por el cliente.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Id de la partida.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/RespuestaInput"
+ *           example:
+ *             gameQuestionId: 1
+ *             choiceId: 1
+ *     responses:
+ *       200:
+ *         description: Respuesta registrada (puntuación calculada por el servidor)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/RespuestaResultado"
+ *       400:
+ *         description: Id o cuerpo no válido, o la opción no pertenece a esa pregunta
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       401:
+ *         description: Token ausente, inválido o caducado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       403:
+ *         description: El usuario no participa en la partida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       404:
+ *         description: La partida o la pregunta no existe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       409:
+ *         description: La pregunta no está en turno, ya fue respondida o la partida ha finalizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
 // Devuelve los datos del usuario autenticado
 /**
  * @openapi
@@ -588,8 +742,8 @@ app.use("/api/auth", authRouter);
  */
 app.get("/api/me", authMiddleware, meController);
 
-// Si ninguna ruta anterior coincide con la petición,
-// devolvemos un error 404.
+/* Si ninguna ruta anterior coincide con la petición,
+ devolvemos un error 404.*/
 app.use(notFoundMiddleware);
 
 // Los errores inesperados se gestionan mediante este middleware.
