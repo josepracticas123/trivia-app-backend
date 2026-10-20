@@ -6,6 +6,7 @@ import {
   submitAnswer,
 } from "../services/game.services.js";
 import { answerSchema } from "../schemas/answer.schema.js";
+import { idParamSchema } from "../schemas/question-id.schema.js";
 
 /* Crea una partida individual para el usuario autenticado. */
 export async function createGameController(req: Request, res: Response) {
@@ -36,10 +37,11 @@ export async function getGameController(req: Request, res: Response) {
   //La ide aviene siempre del token( ya la validó authMiddleware)
   const userId = res.locals.userId;
 
-  /* en Espress. req.params.id llega como texto
-  lo convertimos a número y validamos que se aun estero válido */
-  const gameId = Number(req.params.id);
-  if (!Number.isInteger(gameId) || gameId < 1) {
+  /* El id llega a la URl como texto. El esquema acepta solo digitos
+ entre el 1 al 2147483647: rechaza 0, negativos, 1.5, 1e100 y lo que
+  no quepa en el campo Int de PostgreSQL. Se valida ANTES de tocar la BBDD */
+  const resultadoId = idParamSchema.safeParse(req.params);
+  if (!resultadoId.success) {
     return res.status(400).json({
       error: {
         code: "VALIDATION_ERROR",
@@ -47,6 +49,8 @@ export async function getGameController(req: Request, res: Response) {
       },
     });
   }
+  // Ya validado: convertimos a número para pasarlo al servicio.
+  const gameId = Number(resultadoId.data.id);
   //¿existe?
   const game = await getGameById(gameId);
   if (!game) {
@@ -76,7 +80,11 @@ export async function getGameController(req: Request, res: Response) {
   return res.status(200).json({
     id: game.id,
     status: game.status,
+    // Progreso que calculó el servicio a partir de las respuestas guardadas.
+    score: game.score,                   // puntos acumulados (1 por acierto)
+    nextQuestionId: game.nextQuestionId, // id de la pregunta de turno; null al terminar
     questions: game.questions.map((question) => ({
+      
       id: question.id, //el id de la pregunsta / de la partida (la copia) no el questionId del catalogo
       position: question.position,
       statement: question.statement,
@@ -90,14 +98,15 @@ export async function getGameController(req: Request, res: Response) {
   });
 }
 
-// responde la pregunta de partida que esta en el turno.
+// Responde la pregunta de partida que esta en el turno.
 export async function answerController(req: Request, res: Response) {
   //el id del usuario lo puso el authmiddlewasre en res.locals, ya valisó el token
   const userId = res.locals.userId;
 
-  //1- el id de la partida viene de la URL como texto: validar igual que en GET
-  const gameId = Number(req.params.id);
-  if (!Number.isInteger(gameId) || gameId < 1) {
+  /*1- El id de la URL, misma validación que el get ( sólo digitos),
+    1..2147483647. El 400 llega antes de llamar al servicio*/
+  const resultadoId = idParamSchema.safeParse(req.params);
+  if (!resultadoId.success) {
     return res.status(400).json({
       error: {
         code: "VALIDATION_ERROR",
@@ -105,6 +114,7 @@ export async function answerController(req: Request, res: Response) {
       },
     });
   }
+  const gameId = Number(resultadoId.data.id);
 
   //2- validar el cuerpo del zod ( mismo patrón que createQuestionsController)
   const resultadoValidacion = answerSchema.safeParse(req.body);
@@ -129,13 +139,41 @@ export async function answerController(req: Request, res: Response) {
 
   if (!resultado.ok) {
     const errores = {
-      GAME_NOT_FOUND:         { status: 404, code: "GAME_NOT_FOUND",         message: "La partida no existe" },
-      NOT_PARTICIPANT:        { status: 403, code: "FORBIDDEN",              message: "No participas en esta partida" },
-      GAME_FINISHED:          { status: 409, code: "GAME_FINISHED",          message: "La partida ya ha finalizado" },
-      QUESTION_NOT_IN_GAME:   { status: 404, code: "QUESTION_NOT_IN_GAME",   message: "Esa pregunta no pertenece a esta partida" },
-      WRONG_TURN:             { status: 409, code: "WRONG_TURN",             message: "Todavía no le toca a esa pregunta" },
-      CHOICE_NOT_IN_QUESTION: { status: 400, code: "CHOICE_NOT_IN_QUESTION", message: "La opción no pertenece a esa pregunta" },
-      ALREADY_ANSWERED:       { status: 409, code: "ALREADY_ANSWERED",       message: "Ya has respondido esta pregunta" },
+      GAME_NOT_FOUND: {
+        status: 404,
+        code: "GAME_NOT_FOUND",
+        message: "La partida no existe",
+      },
+      NOT_PARTICIPANT: {
+        status: 403,
+        code: "FORBIDDEN",
+        message: "No participas en esta partida",
+      },
+      GAME_FINISHED: {
+        status: 409,
+        code: "GAME_FINISHED",
+        message: "La partida ya ha finalizado",
+      },
+      QUESTION_NOT_IN_GAME: {
+        status: 404,
+        code: "QUESTION_NOT_IN_GAME",
+        message: "Esa pregunta no pertenece a esta partida",
+      },
+      WRONG_TURN: {
+        status: 409,
+        code: "WRONG_TURN",
+        message: "Todavía no le toca a esa pregunta",
+      },
+      CHOICE_NOT_IN_QUESTION: {
+        status: 400,
+        code: "CHOICE_NOT_IN_QUESTION",
+        message: "La opción no pertenece a esa pregunta",
+      },
+      ALREADY_ANSWERED: {
+        status: 409,
+        code: "ALREADY_ANSWERED",
+        message: "Ya has respondido esta pregunta",
+      },
     };
 
     const error = errores[resultado.error];
@@ -144,12 +182,12 @@ export async function answerController(req: Request, res: Response) {
     });
   }
 
- /* 5- 200: isCorrect y score los calculó el backend
+  /* 5- 200: isCorrect y score los calculó el backend
  el cliente solo recibe, nunca envía ni modifica.  */
- return res.status(200).json({
-  gameQuestionId:resultadoValidacion.data.gameQuestionId,
-  isCorrect: resultado.isCorrect,
-  score: resultado.score,
-  finished: resultado.finished, // true al responder la quinta
- });
+  return res.status(200).json({
+    gameQuestionId: resultadoValidacion.data.gameQuestionId,
+    isCorrect: resultado.isCorrect,
+    score: resultado.score,
+    finished: resultado.finished, // true al responder la quinta
+  });
 }

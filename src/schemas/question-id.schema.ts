@@ -12,3 +12,6 @@ export const questionIdSchema = z
       }),
   })
   .strict();
+// El mismo criterio de ID sirve para cualquier ruta con :id (preguntas,
+// partidas...). El nombre antiguo se mantiene para no romper los imports existentes.
+export const idParamSchema = questionIdSchema;
