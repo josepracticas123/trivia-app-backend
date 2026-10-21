@@ -1,9 +1,9 @@
 import { prisma } from "../lib/prisma.js";
 
-// Para reconocer los errores conocidos de prisma( el p2002 de duplicados)
+// Para reconocer los errores conocidos de Prisma (el P2002 de duplicados)
 import { Prisma } from "@prisma/client";
 
-// Preguntas qu etiene cada aprtida individual.
+// Preguntas que tiene cada partida individual.
 export const PREGUNTAS_POR_PARTIDA = 5;
 
 /* Devuelve 5 preguntas aleatorias del catálogo con sus opciones ordenadas. */
@@ -113,7 +113,7 @@ export async function getGameById(gameId: number) {
 
   return { ...game, score, nextQuestionId: siguiente?.id ?? null };
 }
-/* Registra la respuesta de un jugador y actualiza la partida. */
+/* Resultado de submitAnswer: o el acierto con su puntuación, o uno de estos errores conocidos. */
 export type SubmitAnswerResult =
   | { ok: true; isCorrect: boolean; score: number; finished: boolean }
   | {

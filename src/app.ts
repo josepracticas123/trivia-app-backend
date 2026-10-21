@@ -608,7 +608,7 @@ app.use("/api/games", gameRouter);
  * /api/games/{id}:
  *   get:
  *     summary: Obtiene el estado de una partida
- *     description: Devuelve las preguntas y opciones si el usuario autenticado participa en la partida. Nunca incluye las soluciones.
+ *     description: Devuelve las preguntas y opciones, la puntuación acumulada (score) y la siguiente pregunta pendiente (nextQuestionId) si el usuario autenticado participa en la partida. Nunca incluye las soluciones.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -626,7 +626,7 @@ app.use("/api/games", gameRouter);
  *             schema:
  *               $ref: "#/components/schemas/PartidaEstado"
  *       400:
- *         description: El id no es un número entero válido
+ *         description: El id no es un entero entre 1 y 2147483647 (se rechazan decimales y notación exponencial)
  *         content:
  *           application/json:
  *             schema:

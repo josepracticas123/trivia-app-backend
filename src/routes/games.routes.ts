@@ -12,9 +12,9 @@ import { authMiddleware } from "../middlewares/auth.middleware.js";
 // Creamos el Router de partidas.
 export const gameRouter = Router();
 
-/* POST /api/games crea un apartida, la cadena es:
-middleware primero (token) y solo si pasa, create controles después
-si no hay token 401 y ni se toca controller. */
+/* POST /api/games crea una partida; la cadena es:
+middleware primero (token) y, solo si pasa, el controlador después;
+si no hay token, 401 y ni se toca el controller. */
 gameRouter.post("/", authMiddleware, createGameController);
 
 // GET /api/games/:id → estado de la partida. También privada:

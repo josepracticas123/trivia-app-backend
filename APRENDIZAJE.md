@@ -480,6 +480,9 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
   - `POST /api/games/:id/answers`: esquema zod `answerSchema` con `.strict()`, servicio `submitAnswer` con cuatro bloques de comprobaciones (partida y permisos, pregunta y turno, opción perteneciente, cálculo y guardado) y un controlador que traduce cada resultado del servicio a su código HTTP mediante una tabla.
   - Cierre automático: al registrar la quinta respuesta, la misma transacción cambia el estado a `FINISHED` y rellena `finishedAt`.
   - Swagger: schemas `PartidaEstado`, `RespuestaInput` y `RespuestaResultado`, y bloques `@openapi` para los tres endpoints de partidas.
+  - Validación de IDs reutilizando el esquema de retos anteriores (corrección de la revisión del tutor): el parámetro `:id` debe ser una cadena de dígitos entre 1 y 2147483647 mediante el alias `idParamSchema`, y `gameQuestionId`/`choiceId` son números enteros en ese mismo rango; todo se valida ANTES de llamar al servicio.
+  - Progreso en el `GET /api/games/:id`: el servicio añade `score` (aciertos acumulados) y `nextQuestionId` (pregunta de turno; `null` al terminar), calculados siempre en el servidor a partir de las respuestas guardadas, y Swagger documenta ambos campos.
+  - Tests propios de partidas en dos niveles: `games.routes.test.ts` (HTTP con supertest y el servicio simulado) y `game.services.test.ts` (lógica real del servicio contra un Prisma simulado en memoria).
 
 - **Conceptos y explicación propia:**
   - **Reglas de negocio en el servidor:** el cliente solo envía `gameQuestionId` y `choiceId`; el backend decide si es correcta (`choice.position === solution`) y calcula la puntuación. El cliente nunca envía ni modifica puntos.
@@ -492,6 +495,10 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
   - **`.strict()` de zod:** rechaza campos extra como `isCorrect` o `score`. Aunque los dejara pasar, el controlador solo lee los dos campos y la puntuación la calcula el servidor: defensa en profundidad.
   - **404, 403 y 409 con significado:** 404 = el recurso no existe, 403 = existe y no es tuyo, 409 = el estado actual de la partida no permite esa acción (turno, duplicado o cerrada).
   - **Swagger es un documento, la vista solo lo pinta:** cada bloque `@openapi` aporta una operación, el orden de los bloques es el orden en la vista y los cambios requieren reiniciar el servidor.
+  - **Validar el ID es validar una CADENA:** el parámetro de la URL llega como texto; `Number("1e100")` es 10^100 y `Number.isInteger(1e100)` da `true` (no tiene decimales), así que una comprobación débil lo deja pasar hasta que Prisma revienta con un identificador que no cabe en el campo `Int`. El regex `^\d+$` mata decimales y notación exponencial, y el rango `1..2147483647` mata el `0` y lo que no cabe en la base.
+  - **Reutilizar sin duplicar reglas:** `idParamSchema` es un alias de `questionIdSchema`; el mismo criterio de ID vale para preguntas y partidas sin copiar código ni romper los imports existentes.
+  - **El progreso se calcula, no se guarda:** `score` es contar respuestas con `isCorrect: true` (como máximo una por pregunta) y `nextQuestionId` es la primera pregunta sin respuestas; ambos se derivan en el servidor desde las respuestas ya guardadas, de modo que al recargar la partida el frontend reconstruye el estado sin fiarse de nada enviado por el cliente.
+  - **Dos niveles de test, dos mocks:** en `src/routes/` se simula el SERVICIO y se prueban el controlador, las validaciones y la tabla error → HTTP; en `src/services/` se simula PRISMA y se prueba la lógica real del servicio contra una BBDD falsa en memoria. El `it.each` de vitest permite cubrir muchas entradas inválidas sin repetir código.
 
 - **Pruebas y resultados:**
   - `npm run typecheck` y `npm run build`: sin errores.
@@ -507,6 +514,15 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
     6. Quinta respuesta → 200 `finished: true, score: 5`.
     7. Responder con la partida cerrada → 409 `GAME_FINISHED`.
   - Swagger refleja el contrato: los tres endpoints de partidas documentados y probados desde `/docs`.
+  - **Revisión del tutor — matriz de validación de IDs (24/24 con un script de Node contra el servidor levantado):**
+    1. `GET /api/games/{id}` con `1e100`, `0`, `-5`, `1.5` y `2147483648` → 400 `VALIDATION_ERROR` (el `1e100` antes producía un 500 de Prisma).
+    2. `GET` con `99999` (válido pero inexistente) → 404 `GAME_NOT_FOUND`; con `1` → 200 (flujo válido intacto).
+    3. `POST /api/games/{id}/answers` con esos mismos ids en la URL → 400/404 sin llegar al servicio.
+    4. Body con `gameQuestionId` o `choiceId` a `0`, `-5`, `1.5`, `2147483648` y con campo extra `isCorrect` → 400 `VALIDATION_ERROR`.
+    5. `gameQuestionId: 99999` en una partida activa → 404 `QUESTION_NOT_IN_GAME`; respuesta válida → 200 (flujo conservado).
+  - `npm test` tras las mejoras: **55 tests en 6 archivos** (37 nuevos: 27 de rutas y 10 de servicios); `npm run typecheck` sin errores.
+  - Progreso en vivo: `GET /api/games/1` (terminada) → `score: 5, nextQuestionId: null`; `GET /api/games/3` (activa, una respuesta) → `score: 1, nextQuestionId: 12`.
+  - Swagger: `/api/openapi.json` refleja `score` y `nextQuestionId` (con `nullable: true`, estilo OpenAPI 3.0) dentro de `PartidaEstado`.
 
 - **Error y solución:**
   - Al pegar el servicio, un typo en el tipo (`GAME_NOT_FOUN`) y la ausencia del `return` final produjeron los errores TS2820 y TS2366; corregidos los dos.
@@ -517,6 +533,11 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
   - El test de "campo prohibido" devolvió 200 en lugar de 400: el comentario decía "sin campos extra" pero faltaba la llamada `.strict()`; añadida y repetida la prueba con 400 correcto.
   - Un token de Swagger caducó y daba 401 con "Falta el token": el curl no llevaba la cabecera `Authorization`; se resolvió volviendo a autorizar con un token nuevo.
   - Corrección de errata: `FORBIDEN` → `FORBIDDEN` en el código de error 403 del `GET /api/games/:id`, igualándolo al del endpoint de respuestas.
+  - El revisor reproducía `GET /api/games/1e100` con un 500 de Prisma: la validación antigua (`Number.isInteger`) no limitaba el rango. Sustituida por `idParamSchema.safeParse(req.params)` en ambos controladores y añadido `.max(2147483647)` a los dos campos del body.
+  - La primera pasada de la matriz salió 22/24: al aplicar el `.max` al `choiceId` se le olvidó el `.min(1)`, y `0`/`-5` pasaban la validación y llegaban al servicio (409 en vez de 400). Detectado por las pruebas y corregido: los casos límite existen exactamente para esto.
+  - Swagger UI bloquea `1e100` en el formulario ("Value must be an integer") porque valida el contrato en el navegador; la prueba se mandó con curl. Además, PowerShell traga las comillas simples del body JSON (`INVALID_JSON`), así que la matriz completa se ejecutó con un script de Node que hizo las 24 peticiones de una vez.
+  - En la documentación de Swagger hubo dos erratas de pegado: el `required` nuevo se coló en el de cada opción de `choices` (en vez del de `PartidaEstado`) y la descripción del `400` ocupó el sitio de la descripción principal del GET; intercambiadas a su sitio.
+  - Al añadir los campos nuevos al `json` del controlador faltó un `)` en el `map` de preguntas (TS1135): el error de sintaxis apareció en la línea de DESPUÉS del sitio real del problema.
 
 - **Dudas:**
   - **¿Por qué guardar una copia de las preguntas?** Porque `GameQuestion`/`GameChoice` son un snapshot: si mañana se edita o se borra una pregunta del catálogo, la partida en curso conserva su enunciado, sus opciones y su solución tal y como se jugaron.
@@ -524,9 +545,12 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
   - **¿Responder dos veces suma dos puntos?** No: la segunda recibe 409 (el turno ya pasó) y, además, `@@unique([gameQuestionId])` lo impide a nivel de base de datos.
   - **¿El rol ADMIN afecta a las partidas?** No: las rutas de juegos solo usan `authMiddleware`; el `adminMiddleware` está reservado para el CRUD de preguntas.
   - **¿Qué pasa al completar la quinta?** La transacción cambia el estado a `FINISHED` y cualquier respuesta posterior recibe 409 `GAME_FINISHED`.
+  - **¿Por qué `score` no está guardado en ninguna tabla?** Porque hoy no hace falta: es el recuento de respuestas con `isCorrect: true` y recalcularlo desde la base garantiza que siempre coincide con la verdad; si algún día hubiera puntos parciales, se podría añadir un campo.
+  - **¿Y si el frontend recarga la página en mitad de la partida?** El `GET /api/games/:id` devuelve `score` y `nextQuestionId`, así que el cliente reconstruye el progreso sin adivinar nada, y sigue sin ver las soluciones de las preguntas pendientes.
 
 - **PR y correcciones:**
-  - Rama `reto/13-partida-individual` con todo el trabajo del reto; PR hacia `develop` sin hacer merge; las correcciones del tutor irán en la misma rama y el mismo PR.
+  - Rama `reto/13-partida-individual` con todo el trabajo del reto; PR hacia `develop` sin hacer merge.
+  - Revisión del tutor sobre el commit `2262322`: una corrección necesaria (validación de IDs en URL y body, con el rango completo del `Int`) y dos mejoras propuestas (tests propios de partidas y `score`/`nextQuestionId` en el `GET`); las tres aplicadas en la misma rama y el mismo PR, dejándolo abierto para la siguiente revisión (sin empezar el reto 14).
 
 ## 14 · Consulta tu historial
 

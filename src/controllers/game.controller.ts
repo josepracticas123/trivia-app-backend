@@ -32,12 +32,12 @@ export async function createGameController(req: Request, res: Response) {
   });
 }
 
-// devuelve el estado de una pregunta aun participante
+// Devuelve el estado de la partida a un participante.
 export async function getGameController(req: Request, res: Response) {
-  //La ide aviene siempre del token( ya la validó authMiddleware)
+  // El id del usuario lo puso el authMiddleware en res.locals (ya validó el token).
   const userId = res.locals.userId;
 
-  /* El id llega a la URl como texto. El esquema acepta solo digitos
+  /* El id llega a la URL como texto. El esquema acepta solo dígitos
  entre el 1 al 2147483647: rechaza 0, negativos, 1.5, 1e100 y lo que
   no quepa en el campo Int de PostgreSQL. Se valida ANTES de tocar la BBDD */
   const resultadoId = idParamSchema.safeParse(req.params);
@@ -75,8 +75,8 @@ export async function getGameController(req: Request, res: Response) {
     });
   }
 
-  /* respuesta pública,  campo a campo. nunca hacemos res.json(game) 
-    porque game, incluye la solucion y revela la respuesta*/
+  /* Respuesta pública, campo a campo. Nunca hacemos res.json(game)
+     porque game incluye la solución y revelaría la respuesta. */
   return res.status(200).json({
     id: game.id,
     status: game.status,
@@ -84,8 +84,7 @@ export async function getGameController(req: Request, res: Response) {
     score: game.score,                   // puntos acumulados (1 por acierto)
     nextQuestionId: game.nextQuestionId, // id de la pregunta de turno; null al terminar
     questions: game.questions.map((question) => ({
-      
-      id: question.id, //el id de la pregunsta / de la partida (la copia) no el questionId del catalogo
+      id: question.id, // el id de la pregunta en la partida (la copia), no el questionId del catálogo
       position: question.position,
       statement: question.statement,
       choices: question.choices.map((choice) => ({
@@ -93,17 +92,17 @@ export async function getGameController(req: Request, res: Response) {
         text: choice.text,
         position: choice.position,
       })),
-      // no enviamos: solution, questionId, answer
+      // no enviamos: solution, questionId, answers
     })),
   });
 }
 
-// Responde la pregunta de partida que esta en el turno.
+// Responde la pregunta de partida que está en el turno.
 export async function answerController(req: Request, res: Response) {
-  //el id del usuario lo puso el authmiddlewasre en res.locals, ya valisó el token
+  // El id del usuario lo puso el authMiddleware en res.locals; ya validó el token.
   const userId = res.locals.userId;
 
-  /*1- El id de la URL, misma validación que el get ( sólo digitos),
+  /* 1- El id de la URL, misma validación que el GET (solo dígitos),
     1..2147483647. El 400 llega antes de llamar al servicio*/
   const resultadoId = idParamSchema.safeParse(req.params);
   if (!resultadoId.success) {
@@ -116,7 +115,7 @@ export async function answerController(req: Request, res: Response) {
   }
   const gameId = Number(resultadoId.data.id);
 
-  //2- validar el cuerpo del zod ( mismo patrón que createQuestionsController)
+  // 2- Validar el cuerpo con zod (mismo patrón que createQuestionsController)
   const resultadoValidacion = answerSchema.safeParse(req.body);
   if (!resultadoValidacion.success) {
     return res.status(400).json({

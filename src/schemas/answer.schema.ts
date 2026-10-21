@@ -1,5 +1,5 @@
 import { z } from "zod";
-//Vaidar los datos que envía el cliente para responder una pregunta de partida.
+// Validar los datos que envía el cliente para responder una pregunta de partida.
 export const answerSchema = z
   .object({
     /* La copia de la pregunta DENTRO de la partida, tal y como
@@ -10,6 +10,6 @@ export const answerSchema = z
     // Id de la opción elegida dentro de esa pregunta (mismo rango).
     choiceId: z.number().int().min(1).max(2147483647),
   })
-  /* sin campos extra: aqui nunca llega ni isCorrect, ni score
-ni solution, la puntuación se calcula siempre en backend*/
+  /* Sin campos extra: aquí nunca llega ni isCorrect, ni score
+ni solution; la puntuación se calcula siempre en el backend. */
   .strict();

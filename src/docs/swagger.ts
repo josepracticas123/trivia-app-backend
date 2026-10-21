@@ -176,6 +176,19 @@ const swaggerDefinition = {
             enum: ["ACTIVE", "FINISHED"], //enum gamestatus de prisma
             example: "ACTIVE",
           },
+          score: {
+            type: "integer",
+            description:
+              "Puntos acumulados, calculados en el servidor (1 por acierto).",
+            example: 3,
+          },
+          nextQuestionId: {
+            type: "integer",
+            nullable: true, // ← OpenAPI 3.0: null al terminar la partida
+            description:
+              "Id de la siguiente pregunta pendiente (la de turno); null cuando ya no queda ninguna.",
+            example: 14,
+          },
           questions: {
             type: "array",
             items: {
@@ -213,12 +226,12 @@ const swaggerDefinition = {
             },
           },
         },
-        required: ["id", "status", "questions"],
+        required: ["id", "status", "score", "nextQuestionId", "questions"],
       },
 
-      /* Datos qu eel cliente envía para responder.
-      El strict() del zod rechaza campos extra: aqui nunca
-      puede venir isCorrect ni score ( lo calcula el servidor)  */
+      /* Datos que el cliente envía para responder.
+      El strict() del zod rechaza campos extra: aquí nunca
+      puede venir isCorrect ni score (lo calcula el servidor). */
       RespuestaInput: {
         type: "object",
         properties: {
