@@ -1,8 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import jwt from "jsonwebtoken";
-import { authMiddleware, adminMiddleware } from "./auth.middleware.js";
-import { prisma } from "../lib/prisma.js";
+import { authMiddleware } from "../../src/middlewares/auth.middleware.js";
+import { adminMiddleware } from "../../src/middlewares/admin.middleware.js";
+import { prisma } from "../../src/lib/prisma.js";
 
 // Agrupamos todas las pruebas relacionadas con authMiddleware.
 describe("authMiddleware", () => {
@@ -76,7 +77,7 @@ describe("authMiddleware", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: {
         code: "INVALID_TOKEN",
-        message: "El token no es válido o ha caducado",
+        message: "El token no es válido",
       },
     });
 
@@ -118,7 +119,7 @@ describe("authMiddleware", () => {
     // Comprobamos el mensaje de error.
     expect(res.json).toHaveBeenCalledWith({
       error: {
-        code: "INVALID_TOKEN",
+        code: "TOKEN_EXPIRED",
         message: "El token no es válido o ha caducado",
       },
     });
@@ -165,7 +166,7 @@ describe("authMiddleware", () => {
     // Comprobamos el error esperado.
     expect(res.json).toHaveBeenCalledWith({
       error: {
-        code: "INVALID_TOKEN",
+        code: "TOKEN_USER_MISSING",
         message: "El usuario del token ya no existe",
       },
     });
@@ -323,7 +324,7 @@ describe("adminMiddleware", () => {
     // Comprobamos el error esperado.
     expect(res.json).toHaveBeenCalledWith({
       error: {
-        code: "FORBIDDEN",
+        code: "NOT_ADMIN",
         message: "No tienes permisos para realizar esta acción",
       },
     });

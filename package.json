@@ -17,7 +17,8 @@
     "db:migrate:status": "prisma migrate status",
     "db:studio": "prisma studio",
     "seed": "tsx src/lib/seed.ts",
-    "test": "node --env-file-if-exists=.env ./node_modules/vitest/vitest.mjs run"
+    "test": "node --env-file-if-exists=.env ./node_modules/vitest/vitest.mjs run",
+    "test:integration": "node --env-file=tests/.env.test ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

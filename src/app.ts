@@ -12,6 +12,7 @@ import { authMiddleware } from "./middlewares/auth.middleware.js";
 import { meController } from "./controllers/auth.controller.js";
 // Router de partidas (reto 13).
 import { gameRouter } from "./routes/games.routes.js";
+import { meRouter } from "./routes/me.routes.js";
 
 // Importa los middlewares de manejo de errores.
 import {
@@ -103,7 +104,7 @@ app.use(jsonErrorMiddleware);
  *                 message: Ha ocurrido un error interno en el servidor
  */
 app.get("/", (_req, res) => {
-  res.json({ message: "Bienvenido a TriviaApp Backend José Luis" });
+  res.json({ message: "Bienvenido a TriviaApp Backend" });
 });
 
 // GET: consulta y muestra todas las preguntas.
@@ -199,8 +200,8 @@ app.use("/api/questions", questionRouter);
  *               $ref: "#/components/schemas/Error"
  *             example:
  *               error:
- *                 code: VALIDATION_ERROR
- *                 message: Los datos enviados no son válidos
+ *                 code: PREGUNTA_ID_INVALIDO
+ *                 message: El id de la pregunta no es válido
  *       404:
  *         description: La pregunta no existe
  *         content:
@@ -210,7 +211,7 @@ app.use("/api/questions", questionRouter);
  *             example:
  *               error:
  *                 code: QUESTION_NOT_FOUND
- *                 message: Pregunta no encontrada
+ *                 message: La pregunta no existe
  *       500:
  *         description: Error interno del servidor
  *         content:
@@ -351,8 +352,14 @@ app.use("/api/questions", questionRouter);
  *                   error:
  *                     code: INVALID_JSON
  *                     message: El JSON enviado no es válido
+ *               invalidId:
+ *                 summary: ID no válido
+ *                 value:
+ *                   error:
+ *                     code: PREGUNTA_ID_INVALIDO
+ *                     message: El id de la pregunta no es válido
  *               validationError:
- *                 summary: Datos o ID no válidos
+ *                 summary: Datos no válidos
  *                 value:
  *                   error:
  *                     code: VALIDATION_ERROR
@@ -378,7 +385,7 @@ app.use("/api/questions", questionRouter);
  *             example:
  *               error:
  *                 code: QUESTION_NOT_FOUND
- *                 message: Pregunta no encontrada
+ *                 message: La pregunta no existe
  *       500:
  *         description: Error interno del servidor
  *         content:
@@ -421,8 +428,8 @@ app.use("/api/questions", questionRouter);
  *               $ref: "#/components/schemas/Error"
  *             example:
  *               error:
- *                 code: VALIDATION_ERROR
- *                 message: Los datos enviados no son válidos
+ *                 code: PREGUNTA_ID_INVALIDO
+ *                 message: El id de la pregunta no es válido
  *       404:
  *         description: La pregunta no existe
  *         content:
@@ -432,7 +439,7 @@ app.use("/api/questions", questionRouter);
  *             example:
  *               error:
  *                 code: QUESTION_NOT_FOUND
- *                 message: Pregunta no encontrada
+ *                 message: La pregunta no existe
  *       401:
  *         description: Falta el token o el token no es válido.
  *         content:
@@ -601,6 +608,7 @@ app.use("/api/auth", authRouter);
  *               $ref: "#/components/schemas/Error"
  */
 app.use("/api/games", gameRouter);
+app.use("/api/me", meRouter);
 
 // Documentación Swagger del estado de la partida.
 /**

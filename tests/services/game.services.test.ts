@@ -4,12 +4,12 @@
    para probar su lógica: turnos, puntuación, duplicados... */
 import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getGameById, submitAnswer } from "./game.services.js";
-import { prisma } from "../lib/prisma.js";
+import { getGameById, submitAnswer } from "../../src/services/game.services.js";
+import { prisma } from "../../src/lib/prisma.js";
 
 // Sustituimos prisma por un doble de pruebas: SOLO las funciones
 // que el servicio de partidas usa realmente.
-vi.mock("../lib/prisma.js", () => ({
+vi.mock("../../src/lib/prisma.js", () => ({
   prisma: {
     game: { findUnique: vi.fn(), update: vi.fn() },
     gameChoice: { findUnique: vi.fn() },

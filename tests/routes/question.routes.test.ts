@@ -4,14 +4,14 @@ import {
   getQuestions,
   categoryExist,
   createQuestion,
-} from "../services/question.service.js";
+} from "../../src/services/question.service.js";
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import { questionRouter } from "./questions.routes.js";
+import { questionRouter } from "../../src/routes/questions.routes.js";
 import jwt from "jsonwebtoken";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../../src/lib/prisma.js";
 
 // Simulamos el servicio: la prueba no usa la BBDD real
-vi.mock("../services/question.service.js", () => ({
+vi.mock("../../src/services/question.service.js", () => ({
   getQuestions: vi.fn(),
   // El controlador consulta si existe la categoria antes de crear.
   categoryExist: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock("../services/question.service.js", () => ({
   createQuestion: vi.fn(),
 }));
 // Simulamos prisma
-vi.mock("../lib/prisma.js", () => ({
+vi.mock("../../src/lib/prisma.js", () => ({
   prisma: {
     user: {
       findUnique: vi.fn(),
@@ -136,7 +136,7 @@ describe("POST /api/questions", () => {
       });
 
     expect(response.status).toBe(403);
-    expect(response.body.error.code).toBe("FORBIDDEN");
+    expect(response.body.error.code).toBe("NOT_ADMIN");
   });
 
   /* Comprueba que un admin autenticado puede crear preguntas. */

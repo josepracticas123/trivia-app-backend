@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import jwt from "jsonwebtoken";
-import { authRouter } from "../routes/auth.routes.js";
-import { loginUser, registerUser } from "../services/auth.services.js";
+import { authRouter } from "../../src/routes/auth.routes.js";
+import { loginUser, registerUser } from "../../src/services/auth.services.js";
 // Simulamos Prisma para no necesitar DATABASE_URL en los tests.
-vi.mock("../lib/prisma.js", () => ({
+vi.mock("../../src/lib/prisma.js", () => ({
   prisma: {
     user: {
       findUnique: vi.fn(),
@@ -15,7 +15,7 @@ vi.mock("../lib/prisma.js", () => ({
 }));
 
 // Simulamos el servicio para no depender de la base de datos.
-vi.mock("../services/auth.services.js", () => ({
+vi.mock("../../src/services/auth.services.js", () => ({
   registerUser: vi.fn(),
   loginUser: vi.fn(),
 }));

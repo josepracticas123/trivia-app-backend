@@ -76,8 +76,10 @@ El endpoint `/health` ya está disponible. El puerto por defecto es 3000; al cam
 | `npm run db:migrate:dev` | Crea y aplica migraciones de desarrollo. Cambia tablas; ejecútalo solo contra la base de prácticas acordada |
 | `npm run seed` | Inserta las preguntas de práctica que aún no existan, buscando por enunciado |
 | `npm run db:studio` | Abre Prisma Studio local, normalmente en `http://localhost:5555`, para inspeccionar y editar datos |
+| `npm test` | Ejecuta las pruebas automatizadas con Vitest y mocks; no necesita base de datos |
+| `npm run test:integration` | Ejecuta las pruebas de integración con Supertest contra la base de datos de pruebas; requiere tenerla configurada (ver `tests/README.md`) |
 
-`tsx` ejecuta el código, pero no sustituye la comprobación de tipos. No hay scripts `lint` ni `test` todavía. Antes de entregar, ejecuta siempre `typecheck` y `build` y las pruebas que ya se hayan incorporado.
+`tsx` ejecuta el código, pero no sustituye la comprobación de tipos. No hay script `lint` todavía. Ya existen pruebas automatizadas: `npm test` (Vitest con mocks, sin base de datos) y `npm run test:integration` (contra una base de datos PostgreSQL real de pruebas). El detalle está en `tests/README.md`. Antes de entregar, ejecuta siempre `typecheck`, `build` y las pruebas.
 
 ### PostgreSQL y Prisma (Reto 06)
 
@@ -116,6 +118,8 @@ Para configurar una instalación local:
 
 El modelo está en `prisma/schema.prisma`, el historial reproducible en `prisma/migrations/` y el seed en `src/lib/seed.ts`. El cliente Prisma local y los comandos CLI leen `DATABASE_URL`; las rutas de la API siguen usando datos en memoria hasta el reto 07. Un backend alojado en Railway puede usar la URL privada de PostgreSQL del mismo entorno. La CLI `migrate status` solo inspecciona el historial; `migrate dev` cambia el esquema y `seed` inserta datos.
 
+Las pruebas de integración (`npm run test:integration`) no usan la base de prácticas, sino una base de datos PostgreSQL **local** y separada (`trivia_test`), porque crean y borran datos. Se configura con `tests/.env.test` (ignorado por Git) y se detalla en `tests/README.md`. El comando `npm test` no toca ninguna base de datos.
+
 El reinicio acordado en el [reto 09](retos/09-relaciones.md) es una excepción puntual, con pérdida de los datos anteriores aceptada por el tutor. A partir de esa base se conserva la migración inicial y se crean migraciones nuevas para los siguientes retos. No repitas el borrado del historial ni el reset como solución habitual.
 
 ## Estructura y responsabilidades
@@ -127,7 +131,7 @@ TriviaApp_Backend/
 ├── retos/                  # Enunciados, checks y revisión
 ├── docs/                   # Eventos y despliegue cuando aparezcan
 ├── prisma/                 # Esquema, migraciones y seed desde el reto 06
-├── tests/                  # Pruebas importantes cuando se incorporen
+├── tests/                  # Pruebas automatizadas (ver tests/README.md)
 ├── .github/                # Plantilla de pull request
 ├── .env.example
 ├── package.json
