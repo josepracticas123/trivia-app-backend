@@ -12,14 +12,17 @@ model Category {
   name      String     @unique
   questions Question[]
 }
+
 // Tabla de preguntas.
 model Question {
-  id         Int      @id @default(autoincrement())
-  statement  String
-  categoryId Int
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  choices    Option[]
+  id            Int            @id @default(autoincrement())
+  statement     String
+  categoryId    Int
+  category      Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  choices       Option[]
+  gameQuestions GameQuestion[]
 }
+
 // Tabla para opciones
 model Option {
   id         Int      @id @default(autoincrement())
@@ -40,10 +43,84 @@ enum Role {
 }
 
 // Modelo de tabla para usuario.
-model user{
-  id Int @id @default(autoincrement())
-  email String @unique
+model user {
+  id           Int          @id @default(autoincrement())
+  email        String       @unique
   passwordHash String
-  createdAt DateTime @default(now())
-  role Role @default(USER)
+  createdAt    DateTime     @default(now())
+  role         Role         @default(USER)
+  games        GamePlayer[]
+}
+
+// Estado de una partida.
+enum GameStatus {
+  ACTIVE
+  FINISHED
+}
+
+// Una partida de trivia.
+model Game {
+  id         Int            @id @default(autoincrement())
+  status     GameStatus     @default(ACTIVE)
+  createdAt  DateTime       @default(now())
+  finishedAt DateTime?
+  players    GamePlayer[]
+  questions  GameQuestion[]
+}
+
+// Participantes de la partida. Aunque ahora sea individual,
+// usamos esta tabla para poder ampliar a dos jugadores después.
+model GamePlayer {
+  id     Int  @id @default(autoincrement())
+  game   Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  gameId Int
+  user   user @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  // Un usuario no puede estar dos veces en la misma partida.
+  @@unique([gameId, userId])
+}
+
+// Pregunta congelada dentro de una partida: copia del enunciado,
+// las opciones y la solución del catálogo en el momento de crearla.
+model GameQuestion {
+  id         Int          @id @default(autoincrement())
+  game       Game         @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  gameId     Int
+  position   Int // Orden en la partida (0..4)
+  statement  String // Copia del enunciado
+  solution   Int // Copia de la respuesta correcta (0..3)
+  question   Question?    @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  questionId Int? // Origen en el catálogo (por trazabilidad; si se borra, no rompe)
+  choices    GameChoice[]
+  answers    Answer[]
+
+  // La misma pregunta no se repite dentro de una partida.
+  @@unique([gameId, position])
+}
+
+// Copia de una opción dentro de una pregunta de partida.
+model GameChoice {
+  id             Int          @id @default(autoincrement())
+  gameQuestion   GameQuestion @relation(fields: [gameQuestionId], references: [id], onDelete: Cascade)
+  gameQuestionId Int
+  text           String
+  position       Int // 0..3
+  answers        Answer[]
+
+  @@unique([gameQuestionId, position])
+}
+
+// Una fila por respuesta dada por el jugador.
+model Answer {
+  id             Int          @id @default(autoincrement())
+  gameQuestion   GameQuestion @relation(fields: [gameQuestionId], references: [id], onDelete: Cascade)
+  gameQuestionId Int
+  choice         GameChoice   @relation(fields: [choiceId], references: [id], onDelete: Cascade)
+  choiceId       Int
+  isCorrect      Boolean
+  createdAt      DateTime     @default(now())
+
+  // Responder dos veces la misma pregunta: imposible a nivel de base.
+  @@unique([gameQuestionId])
 }

@@ -83,109 +83,219 @@ const swaggerDefinition = {
 
       // Representa una categoría disponible para asignar a la pregunta.
       Categoria: {
-      type: "object",
-      properties: {
-        id: {
-          type: "integer",
-          example: 1,
-        },
-
-        name: {
-          type: "string",
-          example: "Geografía",
-        },
-      },
-      required: ["id", "name"],
-    },
-    // Representa una pregunta que podemos devolver al cliente.
-    // Importante: NO contiene respuestaCorrecta.
-    PreguntaPublica: {
-      type: "object",
-      properties: {
-        id: {
-          type: "integer",
-          example: 1,
-        },
-        categoryId: {
-          type: "integer",
-          example: 1,
-        },
-        enunciado: {
-          type: "string",
-          example: "¿Cuál es la capital de España?",
-        },
-        opciones: {
-          type: "array",
-          minItems: 4,
-          maxItems: 4,
-          items: {
-            type: "string",
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            example: 1,
           },
-          example: ["Madrid", "Barcelona", "Valencia", "Sevilla"],
+
+          name: {
+            type: "string",
+            example: "Geografía",
+          },
         },
+        required: ["id", "name"],
       },
-      required: ["id", "enunciado", "categoryId", "opciones"],
-    },
-    // Representa los datos necesarios para crear o actualizar una pregunta.
-    // Aquí SÍ incluimos respuestaCorrecta porque forma parte de la entrada.
-    PreguntaInput: {
-      description:
-        "El servidor elimina los espacios al principio y al final de enunciado y opciones. Los textos no pueden quedar vacíos después de esa limpieza y las opciones deben ser distintas después de limpiarlas.",
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        categoryId: {
-          type: "integer",
-          minimum: 1,
-          maximum: 2147483647,
+      // Representa una pregunta que podemos devolver al cliente.
+      // Importante: NO contiene respuestaCorrecta.
+      PreguntaPublica: {
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            example: 1,
+          },
+          categoryId: {
+            type: "integer",
+            example: 1,
+          },
+          enunciado: {
+            type: "string",
+            example: "¿Cuál es la capital de España?",
+          },
+          opciones: {
+            type: "array",
+            minItems: 4,
+            maxItems: 4,
+            items: {
+              type: "string",
+            },
+            example: ["Madrid", "Barcelona", "Valencia", "Sevilla"],
+          },
         },
-        enunciado: {
-          type: "string",
-          minLength: 1,
-          example: "¿Cuál es la capital de España?",
-        },
-        opciones: {
-          type: "array",
-          minItems: 4,
-          maxItems: 4,
-          uniqueItems: true,
-          items: {
+        required: ["id", "enunciado", "categoryId", "opciones"],
+      },
+      // Representa los datos necesarios para crear o actualizar una pregunta.
+      // Aquí SÍ incluimos respuestaCorrecta porque forma parte de la entrada.
+      PreguntaInput: {
+        description:
+          "El servidor elimina los espacios al principio y al final de enunciado y opciones. Los textos no pueden quedar vacíos después de esa limpieza y las opciones deben ser distintas después de limpiarlas.",
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          categoryId: {
+            type: "integer",
+            minimum: 1,
+            maximum: 2147483647,
+          },
+          enunciado: {
             type: "string",
             minLength: 1,
+            example: "¿Cuál es la capital de España?",
           },
-          example: ["Madrid", "Barcelona", "Valencia", "Sevilla"],
-        },
-        respuestaCorrecta: {
-          type: "integer",
-          minimum: 0,
-          maximum: 3,
-          example: 0,
-        },
-      },
-      required: ["categoryId", "enunciado", "opciones", "respuestaCorrecta"],
-    },
-    // Representa el formato de los errores que devuelve nuestra API.
-    Error: {
-      type: "object",
-      properties: {
-        error: {
-          type: "object",
-          properties: {
-            code: {
+          opciones: {
+            type: "array",
+            minItems: 4,
+            maxItems: 4,
+            uniqueItems: true,
+            items: {
               type: "string",
-              example: "VALIDATION_ERROR",
+              minLength: 1,
             },
-            message: {
-              type: "string",
-              example: "Los datos enviados no son válidos",
+            example: ["Madrid", "Barcelona", "Valencia", "Sevilla"],
+          },
+          respuestaCorrecta: {
+            type: "integer",
+            minimum: 0,
+            maximum: 3,
+            example: 0,
+          },
+        },
+        required: ["categoryId", "enunciado", "opciones", "respuestaCorrecta"],
+      },
+      /* Estado público de una partida individual,
+    igual que el controlador: no contiene solución ni questionId,
+    la solucion nunca sale del cliente */
+      PartidaEstado: {
+        type: "object",
+        properties: {
+          id: { type: "integer", example: 1 },
+          status: {
+            type: "string",
+            enum: ["ACTIVE", "FINISHED"], //enum gamestatus de prisma
+            example: "ACTIVE",
+          },
+          score: {
+            type: "integer",
+            description:
+              "Puntos acumulados, calculados en el servidor (1 por acierto).",
+            example: 3,
+          },
+          nextQuestionId: {
+            type: "integer",
+            nullable: true, // ← OpenAPI 3.0: null al terminar la partida
+            description:
+              "Id de la siguiente pregunta pendiente (la de turno); null cuando ya no queda ninguna.",
+            example: 14,
+          },
+          questions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: {
+                  type: "integer",
+                  description:
+                    "Id de la pregunta DENTRO de la partida (la copia), no del catalogo.",
+                  example: 12,
+                },
+                position: {
+                  type: "integer",
+                  description: "Orden de la partida (0..4).",
+                  example: 0,
+                },
+                statement: {
+                  type: "string",
+                  example: "¿Cuál es la capital de Portugal?",
+                },
+                choices: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      id: { type: "integer", example: 45 },
+                      text: { type: "string", example: "Lisboa" },
+                      position: { type: "integer", example: 0 },
+                    },
+                    required: ["id", "text", "position"],
+                  },
+                },
+              },
+              required: ["id", "position", "statement", "choices"],
             },
           },
-          required: ["code", "message"],
         },
+        required: ["id", "status", "score", "nextQuestionId", "questions"],
       },
-      required: ["error"],
+
+      /* Datos que el cliente envía para responder.
+      El strict() del zod rechaza campos extra: aquí nunca
+      puede venir isCorrect ni score (lo calcula el servidor). */
+      RespuestaInput: {
+        type: "object",
+        properties: {
+          gameQuestionId: {
+            type: "integer",
+            description: "Id de la pregunta DENTRO de la partida (la copia).",
+            example: 1,
+          },
+          choiceId: {
+            type: "integer",
+            description: "Id de la opción elegida dentro de esa pregunta",
+            example: 1,
+          },
+        },
+        required: ["gameQuestionId", "choiceId"],
+      },
+
+      /* Resultado de responder: la puntuación la calcula SIEMPRE el backend,
+      el cliente solo la recibe ( no puede enviarla ni modificarla) */
+      RespuestaResultado: {
+        type: "object",
+        propertie: {
+          gameQuestionId: {
+            type: "integer",
+            example: 1,
+          },
+          isCorrect: { type: "boolean", example: true },
+          score: {
+            type: "integer",
+            description: "Puntos acumulados, calculados por el servidor.",
+            example: 1,
+          },
+          finished: {
+            type: "boolean",
+            description:
+              "true al responder la quinta pregunta (patida FINISHED)",
+            examle: false,
+          },
+        },
+        required: ["gameQuestionId", "isCorrect", "score", "finished"],
+      },
+
+      // Representa el formato de los errores que devuelve nuestra API.
+      Error: {
+        type: "object",
+        properties: {
+          error: {
+            type: "object",
+            properties: {
+              code: {
+                type: "string",
+                example: "VALIDATION_ERROR",
+              },
+              message: {
+                type: "string",
+                example: "Los datos enviados no son válidos",
+              },
+            },
+            required: ["code", "message"],
+          },
+        },
+        required: ["error"],
+      },
     },
-  },
   },
 };
 
