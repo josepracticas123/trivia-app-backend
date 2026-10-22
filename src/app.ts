@@ -13,6 +13,7 @@ import { meController } from "./controllers/auth.controller.js";
 // Router de partidas (reto 13).
 import { gameRouter } from "./routes/games.routes.js";
 import { meRouter } from "./routes/me.routes.js";
+import cors from "cors";
 
 // Importa los middlewares de manejo de errores.
 import {
@@ -140,21 +141,38 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
+app.use(
+  cors({
+    origin: process.env.FRONTEND_ORIGIN,
+    credentials: true,
+  })
+);
 /**
  * @openapi
  * /api/questions:
  *   get:
- *     summary: Obtener todas las preguntas
- *     description: Devuelve todas las preguntas sin mostrar la respuesta correcta.
+ *     summary: Obtener preguntas (paginadas)
+ *     description: Devuelve preguntas paginadas, con búsqueda y filtro por categoría.
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1, default: 1 }
+ *       - in: query
+ *         name: pageSize
+ *         schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *       - in: query
+ *         name: categoryId
+ *         schema: { type: integer, minimum: 1 }
  *     responses:
  *       200:
- *         description: Lista de preguntas
+ *         description: Lista paginada de preguntas
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: "#/components/schemas/PreguntaPublica"
+ *               $ref: "#/components/schemas/PreguntasPaginadas"
  *       500:
  *         description: Error interno del servidor
  *         content:
@@ -758,6 +776,13 @@ app.get("/api/me", authMiddleware, meController);
  *     description: Devuelve las partidas en las que participa el usuario autenticado, de la más reciente a la más antigua, con id, estado, fechas y puntuación.
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1, default: 1 }
+ *       - in: query
+ *         name: pageSize
+ *         schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
  *     responses:
  *       200:
  *         description: Lista pública de partidas del usuario
@@ -765,6 +790,12 @@ app.get("/api/me", authMiddleware, meController);
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/HistorialPartidas"
+ *       400:
+ *         description: Parámetros de paginación inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
  *       401:
  *         description: Token ausente, inválido o caducado
  *         content:

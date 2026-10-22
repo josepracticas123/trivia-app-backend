@@ -83,4 +83,18 @@ export const questionSchemas = {
     },
     required: ["categoryId", "enunciado", "opciones", "respuestaCorrecta"],
   },
+  // Respuesta paginada del listado de preguntas.
+  PreguntasPaginadas: {
+    type: "object",
+    properties: {
+      items: {
+        type: "array",
+        items: { $ref: "#/components/schemas/PreguntaPublica" },
+      },
+      total: { type: "integer", example: 6 },
+      page: { type: "integer", example: 1 },
+      pageSize: { type: "integer", example: 10 },
+    },
+    required: ["items", "total", "page", "pageSize"],
+  },
 };

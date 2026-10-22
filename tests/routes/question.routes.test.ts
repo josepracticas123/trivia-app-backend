@@ -45,19 +45,24 @@ describe("GET /api/questions", () => {
   // La lectura de preguntas es pública y debe responder 200 sin token.
   it("es pública: responde aunque no se envíe token", async () => {
     // decidimos qué devolvería el servicio real.
-    vi.mocked(getQuestions).mockResolvedValue([
-      {
-        id: 1,
-        categoryId: 1,
-        statement: "¿Cuál es la capital de España?",
-        choices: [
-          { text: "Madrid", position: 0 },
-          { text: "Barcelona", position: 1 },
-          { text: "Valencia", position: 2 },
-          { text: "Sevilla", position: 3 },
-        ],
-      },
-    ]);
+    vi.mocked(getQuestions).mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          categoryId: 1,
+          statement: "¿Cuál es la capital de España?",
+          choices: [
+            { text: "Madrid", position: 0 },
+            { text: "Barcelona", position: 1 },
+            { text: "Valencia", position: 2 },
+            { text: "Sevilla", position: 3 },
+          ],
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+    } as never);
 
     // No podemos autorizar Bearer, a propósito
     const response = await request(app).get("/api/questions");
@@ -66,12 +71,12 @@ describe("GET /api/questions", () => {
     expect(response.status).toBe(200);
 
     // Confirma que el controlador devuelve exactamente una pregunta
-    expect(response.body).toHaveLength(1);
+    expect(response.body.items).toHaveLength(1);
 
     /*Confrima que transforma el formato interno del servicio
      (statement y choices) al formato público de la API
      (enunciado y opciones) */
-    expect(response.body).toEqual([
+    expect(response.body.items).toEqual([
       {
         id: 1,
         enunciado: "¿Cuál es la capital de España?",
