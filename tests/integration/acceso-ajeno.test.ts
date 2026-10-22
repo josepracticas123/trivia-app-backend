@@ -152,8 +152,15 @@ describe("acceso ajeno a una partida", () => {
       .set("Authorization", `Bearer ${tokenDe(usuarioB.id)}`);
 
     expect(historialA.status).toBe(200);
-    expect(historialA.body.games).toHaveLength(1);
+    expect(historialA.body.items).toHaveLength(1);
+    expect(historialA.body.total).toBe(1);
+    expect(historialA.body.page).toBe(1);
+    expect(historialA.body.pageSize).toBe(10);
+
     expect(historialB.status).toBe(200);
-    expect(historialB.body.games).toHaveLength(0);
+    expect(historialB.body.items).toHaveLength(0);
+    expect(historialB.body.total).toBe(0);
+    expect(historialB.body.page).toBe(1);
+    expect(historialB.body.pageSize).toBe(10);
   });
 });

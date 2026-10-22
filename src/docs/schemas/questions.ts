@@ -61,6 +61,7 @@ export const questionSchemas = {
       enunciado: {
         type: "string",
         minLength: 1,
+        maxLength: 500,
         example: "¿Cuál es la capital de España?",
       },
       opciones: {
@@ -71,6 +72,7 @@ export const questionSchemas = {
         items: {
           type: "string",
           minLength: 1,
+          maxLength: 200,
         },
         example: ["Madrid", "Barcelona", "Valencia", "Sevilla"],
       },

@@ -44,7 +44,7 @@ Estado inicial: **Completado** (pendiente de revisión del tutor).
 - PR y commit revisado: Rama `reto/15-filtros-paginacion-cors` → PR hacia `develop` (sin merge). Commits: paginación y filtros en preguntas e historial, CORS con `FRONTEND_ORIGIN`, validación de `FRONTEND_ORIGIN` al arranque, límites `.max()` en campos de texto, acotado de `page` y `search` vacío ignorado.
 - Prueba correcta (petición/acción y resultado): `GET /api/questions?page=999&pageSize=10` → 200 `{ items: [], total: 6, page: 999, pageSize: 10 }`. `GET /api/me/games?page=1&pageSize=5` con Bearer token → 200 `{ items: [], total: 0, page: 1, pageSize: 5 }`. Preflight CORS responde con `Access-Control-Allow-Origin` y `Access-Control-Allow-Credentials: true`.
 - Prueba inválida o fallo (petición/acción y resultado): `page=0`, `page=uno`, `pageSize=51` → 400 `VALIDATION_ERROR`. Página sin elementos devuelve `items` vacío con metadatos coherentes.
-- Comandos y resultados: `npm run typecheck` → sin errores; `npm run build` → sin errores; `npm test` → 58 tests superados (6 archivos).
+- Comandos y resultados: `npm run typecheck` → sin errores; `npm run build` → sin errores; `npm test` → 63 tests superados (8 archivos); `npm run test:integration` → 9 tests superados (2 archivos). Correcciones del tutor aplicadas y verificadas.
 - Dudas o correcciones: `search` vacío se ignora (no filtra); `page` acotado a 1000; límites `.max()` añadidos a campos de texto. Rate limiting y auditoría de dependencias quedan pendientes de consultar con el tutor.
 - Revisión y aprobación del tutor: pendiente.
 - Merge en `develop`: pendiente (no hacer merge hasta aprobación del tutor).

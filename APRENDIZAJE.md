@@ -646,6 +646,7 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
   - El middleware CORS se colocó después de `/health` pero antes de las rutas `/api/*`, así se aplica a todas las rutas de la API.
   - Ajuste posterior: `search` vacío se ignora (no filtra) y `page` se acota a máximo 1000 para evitar skips enormes.
   - Actualizados esquemas y parámetros de Swagger para la respuesta paginada de preguntas e historial.
+  - Correcciones del tutor: CORS movido antes de express.json(); test de integración adaptado a items/total/page/pageSize; categoryId acotado a 2147483647; Swagger documenta 400 y límites; añadidos tests de paginación/filtros y de CORS (JSON malformado + preflight). Tests adicionales: categoryId fuera de rango (400) y cuerpo demasiado grande (413) con CORS.
 
 - **Dudas:**
   - Corregido: `search` vacío se ignora (no filtra). `page` acotado a máximo 1000.

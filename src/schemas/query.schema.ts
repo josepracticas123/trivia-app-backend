@@ -10,5 +10,5 @@ export const paginationQuerySchema = z.object({
   // search opcional (texto)
   search: z.string().max(100).optional(),
   // categoryId opcional (número)
-  categoryId: z.coerce.number().int().min(1).optional(),
+  categoryId: z.coerce.number().int().min(1).max(2147483647).optional(),
 });

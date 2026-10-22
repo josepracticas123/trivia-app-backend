@@ -26,6 +26,13 @@ import {
 // Abrir el puerto es responsabilidad de server.ts.
 export const app = express();
 
+app.use(
+  cors({
+    origin: process.env.FRONTEND_ORIGIN,
+    credentials: true,
+  })
+);
+
 // Muestra la documentación de la API en /docs usando Swagger UI.
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -140,13 +147,6 @@ app.get("/", (_req, res) => {
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
-
-app.use(
-  cors({
-    origin: process.env.FRONTEND_ORIGIN,
-    credentials: true,
-  })
-);
 /**
  * @openapi
  * /api/questions:
@@ -156,16 +156,16 @@ app.use(
  *     parameters:
  *       - in: query
  *         name: page
- *         schema: { type: integer, minimum: 1, default: 1 }
+ *         schema: { type: integer, minimum: 1, maximum: 1000, default: 1 }
  *       - in: query
  *         name: pageSize
  *         schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
  *       - in: query
  *         name: search
- *         schema: { type: string }
+ *         schema: { type: string, maxLength: 100 }
  *       - in: query
  *         name: categoryId
- *         schema: { type: integer, minimum: 1 }
+ *         schema: { type: integer, minimum: 1, maximum: 2147483647 }
  *     responses:
  *       200:
  *         description: Lista paginada de preguntas
@@ -173,6 +173,16 @@ app.use(
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/PreguntasPaginadas"
+ *       400:
+ *         description: Parámetros inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: VALIDATION_ERROR
+ *                 message: Los datos enviados no son válidos
  *       500:
  *         description: Error interno del servidor
  *         content:
