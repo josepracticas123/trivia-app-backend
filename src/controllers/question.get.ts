@@ -2,17 +2,30 @@ import type { Request, Response } from "express";
 import { getQuestions, getQuestionById } from "../services/question.service.js";
 import { questionIdSchema } from "../schemas/question-id.schema.js";
 import { responderError } from "../errors/responderError.js";
-// Controlador que llama al servicio y adapta los datos de la BBDD al formato público.
-export async function getQuestionsController(_req: Request, res: Response) {
-  const preguntas = await getQuestions();
+import { paginationQuerySchema } from "../schemas/query.schema.js";
 
-  const preguntasPublicas = preguntas.map((pregunta) => ({
+export async function getQuestionsController(req: Request, res: Response) {
+  // Validamos los query params.
+  const resultado = paginationQuerySchema.safeParse(req.query);
+  if (!resultado.success) {
+    return responderError(res, "VALIDATION_ERROR"); // ajusta al código de error que uses
+  }
+
+  const { page, pageSize, search, categoryId } = resultado.data;
+
+  // Llamamos al servicio con los parámetros validados.
+  const { items, total } = await getQuestions({ page, pageSize, search, categoryId });
+
+  // Adaptamos cada pregunta al formato público.
+  const itemsPublicos = items.map((pregunta) => ({
     id: pregunta.id,
     enunciado: pregunta.statement,
     categoryId: pregunta.categoryId,
     opciones: pregunta.choices.map((choice) => choice.text),
   }));
-  return res.json(preguntasPublicas);
+
+  // Devolvemos items + metadatos de paginación.
+  return res.json({ items: itemsPublicos, total, page, pageSize });
 }
 
 // Validamos el id de la URL; si no cumple las reglas, respondemos con un error.
