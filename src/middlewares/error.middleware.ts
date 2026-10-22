@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { responderMiddlewareError } from "../errors/responderMiddlewareError.js";
 
 // Captura errores producidos al intentar interpretar un JSON mal formado.
 export const jsonErrorMiddleware = (
@@ -7,42 +8,36 @@ export const jsonErrorMiddleware = (
   res: Response,
   next: NextFunction,
 ) => {
-  // Comprobamos si el error viene de un JSON con sintaxis incorrecta.
+  // El body supera el límite de express.json() (100 KB por defecto).
+  // body-parser lanza un error con type "entity.too.large": lo convertimos en 413.
+  if (
+    err instanceof Error &&
+    "type" in err &&
+    (err as { type?: string }).type === "entity.too.large"
+  ) {
+    return responderMiddlewareError(res, "PAYLOAD_TOO_LARGE");
+  }
+
+  // El body no es un JSON con sintaxis correcta.
   if (err instanceof SyntaxError && "body" in err) {
-    return res.status(400).json({
-      error: {
-        code: "INVALID_JSON",
-        message: "El JSON enviado no es válido",
-      },
-    });
+    return responderMiddlewareError(res, "INVALID_JSON");
   }
 
   // Si no es un error de JSON, lo pasamos al siguiente middleware.
   next(err);
 };
-// Captura rutas no encontradas y devuelve un error 404.
+// Ninguna ruta ha coincidido con la petición: respondemos 404.
 export const notFoundMiddleware = (req: Request, res: Response) => {
-  // Si ninguna ruta anterior coincide con la petición, devolvemos un 404.
-  return res.status(404).json({
-    error: {
-      code: "ROUTE_NOT_FOUND",
-      message: "Ruta no encontrada",
-    },
-  });
+  return responderMiddlewareError(res, "ROUTE_NOT_FOUND");
 };
-// Captura errores inesperados y devuelve un error 500.
+// Último middleware: cualquier error inesperado acaba aquí como 500.
 export const errorMiddleware = (
   err: unknown,
   req: Request,
   res: Response,
   _next: NextFunction,
 ) => {
-  // Los errores inesperados no deben mostrar detalles internos al cliente, solo un mensaje genérico.
-  console.error(err); // Registramos el error en la consola para depuración.
-  return res.status(500).json({
-    error: {
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Ha ocurrido un error interno en el servidor",
-    },
-  });
+  // Al cliente solo le damos un mensaje genérico: nunca detalles internos.
+  console.error(err); // El detalle real queda en la consola, para depurar.
+  return responderMiddlewareError(res, "INTERNAL_SERVER_ERROR");
 };

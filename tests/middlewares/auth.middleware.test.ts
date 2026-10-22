@@ -1,8 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import jwt from "jsonwebtoken";
-import { authMiddleware, adminMiddleware } from "./auth.middleware.js";
-import { prisma } from "../lib/prisma.js";
+import { authMiddleware } from "../../src/middlewares/auth.middleware.js";
+import { adminMiddleware } from "../../src/middlewares/admin.middleware.js";
+import { prisma } from "../../src/lib/prisma.js";
 
 // Agrupamos todas las pruebas relacionadas con authMiddleware.
 describe("authMiddleware", () => {

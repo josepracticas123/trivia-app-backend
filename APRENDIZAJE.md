@@ -554,12 +554,62 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
 
 ## 14 · Consulta tu historial
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- **Lo que he construido:**
+  - `GET /api/me/games`: historial de partidas del usuario autenticado, de la más reciente a la más antigua (`orderBy: { createdAt: "desc" }`) y con `select` explícito de `id`, `status`, `createdAt`, `finishedAt`, `score` (sin credenciales ni soluciones).
+  - El usuario sale SIEMPRE de la sesión validada (`res.locals.userId` que deja `authMiddleware`), nunca de un `userId` del query o del body; el filtro `players: { some: { userId } }` limita la consulta a las partidas propias.
+  - Router nuevo `src/routes/me.routes.ts` montado en `app.ts` como `app.use("/api/me", meRouter)`, con la cadena `authMiddleware` → controlador (401 si falta el token).
+  - Detalle enriquecido en `GET /api/games/:id`: además de `id`, `status`, `score`, `nextQuestionId` y las preguntas con sus opciones, ahora devuelve `createdAt` y `finishedAt`, y cada pregunta lleva `answered` (true si ya tiene respuesta guardada).
+  - Prueba automatizada de acceso ajeno (bloque 3) con **Vitest + Supertest contra una base de datos PostgreSQL real** (`trivia_test`), separada de los tests con mocks.
+  - Infraestructura de pruebas de integración: `tests/integration/`, `vitest.integration.config.ts`, script `npm run test:integration` (con `--env-file=tests/.env.test`) y `.env.test` propio (en `.gitignore`).
+  - Documentación en `tests/README.md`: estructura de carpetas, qué prueba cada fichero y cómo montar y ejecutar la base de datos de pruebas.
+
+- **Conceptos y explicación propia:**
+  - **Filtrar en el backend, no en el frontend:** el historial se filtra por el `userId` de la sesión en la consulta a la base. Filtrar en el frontend no protege nada: los datos ya habrían viajado y cualquiera podría pedir los de otro cambiando el id.
+  - **`select` explícito frente a `include`:** con `select` declaramos exactamente qué columnas salen, así `passwordHash` no puede colarse. Es el mismo criterio que "nunca `res.json(game)`" del reto 13.
+  - **`answered` sin filtrar la solución:** el servicio trae las respuestas con `select: { isCorrect: true }`, así que sabemos SI está respondida (`answers.length > 0`) pero no qué se eligió. Suficiente para que el cliente marque lo hecho y continúe por `nextQuestionId`.
+  - **Ordenación y fechas:** `createdAt desc` da el historial en orden natural y `finishedAt: null` distingue las partidas en curso de las terminadas.
+  - **Tests con mocks frente a tests de integración:** los 56 tests normales simulan Prisma/servicios porque prueban el controlador y las validaciones; el test de acceso ajeno necesita la base REAL porque la regla que comprueba ("solo el participante") la aplica la consulta a la BBDD.
+  - **Base de datos separada:** las pruebas de integración crean y borran datos; por eso usan `trivia_test` en local y jamás la base de prácticas. El `.env.test` es distinto del `.env` y no se sube a Git.
+  - **`--env-file` (sin `if-exists`) en el script de integración:** si faltara el `.env.test`, Node falla en vez de caer al `.env` de desarrollo y escribir en la base equivocada.
+  - **Un test que vale es un test que falla cuando debe:** la prueba de acceso ajeno se validó eliminando temporalmente la comprobación de participante y viendo que se rompe.
+
+- **Pruebas y resultados:**
+  - `npm run typecheck` y `npm run build`: sin errores.
+  - `npm test`: **56 tests en 6 archivos** (los de mocks, sin tocar la base de datos).
+  - `npm run test:integration`: **3 tests en 1 archivo** contra `trivia_test`.
+  - Pruebas manuales con la app levantada (contra `trivia_test`, con curl):
+    1. Dos usuarios registrados y logueados; A crea una partida → 201 `ACTIVE`.
+    2. `GET /api/me/games` de A → 200 con **1** partida; el de B → 200 con **0** (historiales separados).
+    3. B pide la partida de A → **403**; A pide la suya → 200.
+    4. El historial solo trae `id, status, createdAt, finishedAt, score`; el detalle no trae `solution` ni `passwordHash`, y sí `answered`.
+    5. **Reinicio del backend**: se para el servidor, se vuelve a arrancar y la partida sigue accesible con el mismo token → 200 (`score`, `nextQuestionId` intactos).
+    6. **Continuar la partida**: responder la pregunta de turno → 200 `isCorrect: true, score: 1`; el `GET` pasa de `score 0 / nextQuestionId 6` a `score 1 / nextQuestionId 7`.
+  - Pruebas de seguridad (12 comprobaciones con curl contra el servidor):
+    1. Sin token → 401; token inválido → 401.
+    2. Token firmado con **otro secreto** → 401 `INVALID_TOKEN`; token con algoritmo **`none`** → 401 `INVALID_TOKEN`.
+    3. `GET` de partida ajena → 403 y `POST .../answers` en partida ajena → 403.
+    4. IDs maliciosos (`-1`, `abc`, `99999999999999999999`, `1.5`, `0`) → 400 en todos los casos (ningún 500).
+    5. Registro enviando `"role":"ADMIN"` → 400 (el `.strict()` de zod lo rechaza).
+    6. Ninguna respuesta contiene `passwordHash`, `password` ni `solution`.
+  - Comprobación de que el test sirve: al comentar el `if (!esParticipante)` del controlador, **la prueba de integración falla** (`expected 200 to be 403`); restaurado el código, vuelve a pasar.
+
+- **Error y solución:**
+  - Al mover los tests de `src/` a `tests/` no bastó con cambiar los `import`: los `vi.mock("../...")` también llevan ruta relativa, y si no coincide con la del import el mock no se aplica (`vi.mocked(...).mockResolvedValue is not a function`). Corregidas todas las rutas de `vi.mock` a `../../src/...`.
+  - Un test de rutas comparaba la respuesta del detalle con `toEqual` (exacta) y se rompió al añadir `createdAt`/`finishedAt`/`answered`: era el propio test avisando de que el contrato cambió. Se actualizó la expectativa (no se debilitó) y se añadió un caso con pregunta pendiente (`answered: false`).
+  - `vitest.config.ts` tenía `include: ["tests/**/*.test.ts"]`, que arrastraba también los tests de integración: `npm test` tardaba 8s y se conectaba a la base de datos. Solucionado excluyendo `tests/integration/**`; cada comando hace solo lo suyo.
+  - Al probar con curl desde PowerShell, el body JSON llegaba mal y la API devolvía `INVALID_JSON`: las comillas simples de PowerShell no se transmiten bien a `curl.exe`. Se resolvió escribiendo el cuerpo en un fichero y usando `--data-binary "@fichero.json"`.
+  - En Windows `psql` no está en el PATH (`CommandNotFoundException`); hubo que usar la ruta completa `"C:\Program Files\PostgreSQL\18\bin\psql.exe"`, y queda anotado en el README.
+
+- **Dudas:**
+  - **¿Por qué el historial no puede llevar un `userId` en la URL?** Porque sería trivial pedir el de otro cambiando el número. El id sale de la sesión validada, que es la única fuente de verdad.
+  - **¿Por qué no guardar `score` en la tabla `Game`?** Porque es el recuento de respuestas correctas y recalcularlo desde la base garantiza que siempre coincide; si se guardara, podría desincronizarse.
+  - **¿Qué diferencia hay entre `answered` y `nextQuestionId`?** `nextQuestionId` es la primera pregunta sin responder (la de turno); `answered` dice, pregunta a pregunta, cuáles ya están hechas, para que el cliente pueda pintar el progreso.
+  - **¿Por qué el test de integración no puede usar mocks?** Porque lo que comprueba es que la consulta real a la base respeta el participante; con mocks estaría comprobando mi propia simulación, no el comportamiento del sistema.
+  - **¿Por qué no se usa la base de prácticas para las pruebas?** Porque las pruebas crean y borran datos; hacerlo sobre la base real las ensuciaría y podría borrar información de la entrega.
+
+- **PR y correcciones:**
+  - Rama `reto/14-historial`; PR hacia `develop` sin hacer merge.
+  - La rama incluye, además del reto, la refactorización progresiva autorizada por el tutor (middlewares, schemas OpenAPI por grupos, tipos de partidas, controladores y servicios por ficheros con barrels, y tests movidos a `tests/`), hecha paso a paso con verificación entre pasos.
 
 ## 15 · Prepara las consultas del frontend
 

@@ -62,3 +62,16 @@ export async function loginUser(email: string, password: string) {
     email: user.email,
   };
 }
+
+/* Devuelve los datos públicos de un usuario por su id, o null si ya no existe.
+   Se usa en GET /api/me: la consulta a la base vive aquí, no en el controlador. */
+export async function getPublicUserById(userId: number) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+    },
+  });
+}

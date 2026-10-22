@@ -7,23 +7,23 @@ import express from "express";
 import request from "supertest";
 import jwt from "jsonwebtoken";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { gameRouter } from "./games.routes.js";
+import { gameRouter } from "../../src/routes/games.routes.js";
 import {
   createGame,
   getGameById,
   submitAnswer,
-} from "../services/game.services.js";
-import { prisma } from "../lib/prisma.js";
+} from "../../src/services/game.services.js";
+import { prisma } from "../../src/lib/prisma.js";
 
 // Simulamos el servicio de partidas: decidimos nosotros qué devuelve.
-vi.mock("../services/game.services.js", () => ({
+vi.mock("../../src/services/game.services.js", () => ({
   createGame: vi.fn(),
   getGameById: vi.fn(),
   submitAnswer: vi.fn(),
 }));
 
 // Simulamos prisma: authMiddleware solo pide el usuario del token.
-vi.mock("../lib/prisma.js", () => ({
+vi.mock("../../src/lib/prisma.js", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
   },
@@ -62,7 +62,10 @@ describe("POST /api/games", () => {
 
   // Con token válido, el servicio crea la partida y respondemos 201.
   it("devuelve 201 con id y status cuando el servicio crea la partida", async () => {
-    vi.mocked(createGame).mockResolvedValue({ id: 7, status: "ACTIVE" } as never);
+    vi.mocked(createGame).mockResolvedValue({
+      id: 7,
+      status: "ACTIVE",
+    } as never);
 
     const response = await request(app)
       .post("/api/games")
@@ -115,6 +118,10 @@ describe("GET /api/games/:id", () => {
 
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe("GAME_NOT_FOUND");
+    // El mensaje también forma parte del contrato anterior.
+    expect(response.body.error.message).toBe(
+      "El id de la partida no es válido",
+    );
   });
 
   // Existe pero el usuario autenticado no es participante → 403.
@@ -143,6 +150,8 @@ describe("GET /api/games/:id", () => {
       status: "ACTIVE",
       score: 2,
       nextQuestionId: 42,
+      createdAt: new Date("2026-10-01T10:00:00.000Z"),
+      finishedAt: null,
       players: [{ userId: 1 }],
       questions: [
         {
@@ -177,15 +186,61 @@ describe("GET /api/games/:id", () => {
       id: 42,
       position: 0,
       statement: "¿Cuál es la capital de España?",
+      answered: true,
       choices: [
         { id: 100, text: "Madrid", position: 0 },
         { id: 101, text: "Sevilla", position: 1 },
       ],
     });
+    expect(response.body.createdAt).toBe("2026-10-01T10:00:00.000Z");
+    expect(response.body.finishedAt).toBeNull();
     expect(response.body.questions[0]).not.toHaveProperty("solution");
     expect(response.body.questions[0]).not.toHaveProperty("answers");
     expect(response.body.questions[0]).not.toHaveProperty("questionId");
   });
+   
+  // El enunciado pide poder CONTINUAR una partida: una pregunta pendiente
+  // (sin respuestas) debe marcarse como NO respondida, y su solución sigue oculta.
+  it("marca answered:false en una pregunta pendiente y sigue sin solución", async () => {
+    vi.mocked(getGameById).mockResolvedValue({
+      id: 8,
+      status: "ACTIVE",
+      score: 0,
+      nextQuestionId: 55,
+      createdAt: new Date("2026-10-01T10:00:00.000Z"),
+      finishedAt: null,
+      players: [{ userId: 1 }],
+      questions: [
+        {
+          id: 55,
+          position: 0,
+          statement: "¿Cuál es la capital de Portugal?",
+          solution: 2, // no debe salir
+          questionId: 9,
+          answers: [], // pendiente: nadie la ha respondido
+          choices: [
+            { id: 200, text: "Lisboa", position: 0 },
+            { id: 201, text: "Oporto", position: 1 },
+          ],
+        },
+      ],
+    } as never);
+
+    const response = await request(app)
+      .get("/api/games/8")
+      .set("Authorization", `Bearer ${tokenDe(1)}`);
+
+    expect(response.status).toBe(200);
+
+    // La pendiente es la de turno y va marcada como NO respondida.
+    expect(response.body.nextQuestionId).toBe(55);
+    expect(response.body.questions[0].answered).toBe(false);
+
+    // Y aunque la pendiente es justo la que hay que responder,
+    // la solución sigue sin viajar.
+    expect(response.body.questions[0]).not.toHaveProperty("solution");
+  });
+
 });
 
 /* POST /api/games/:id/answers — responder la pregunta de turno */

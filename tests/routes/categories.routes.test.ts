@@ -3,12 +3,12 @@ import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Simulamos el servicio para que la prueba no acceda a la base de datos.
-vi.mock("../services/category.services.js", () => ({
+vi.mock("../../src/services/category.services.js", () => ({
   getCategories: vi.fn(),
 }));
 
-import { getCategories } from "../services/category.services.js";
-import { categoryRouter } from "./categories.routes.js";
+import { getCategories } from "../../src/services/category.services.js";
+import { categoryRouter } from "../../src/routes/categories.routes.js";
 
 // Creamos una aplicación Express pequeña que monta las rutas reales.
 const app = express();
