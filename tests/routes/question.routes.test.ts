@@ -4,13 +4,13 @@ import {
   getQuestions,
   categoryExist,
   createQuestion,
+  updateQuestion,
 } from "../../src/services/question.service.js";
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { questionRouter } from "../../src/routes/questions.routes.js";
 import jwt from "jsonwebtoken";
 import { prisma } from "../../src/lib/prisma.js";
 
-// Simulamos el servicio: la prueba no usa la BBDD real
 vi.mock("../../src/services/question.service.js", () => ({
   getQuestions: vi.fn(),
   // El controlador consulta si existe la categoria antes de crear.
@@ -18,6 +18,7 @@ vi.mock("../../src/services/question.service.js", () => ({
 
   // Simulamos la creación para no escribir en la BBDD real
   createQuestion: vi.fn(),
+  updateQuestion: vi.fn(),
 }));
 // Simulamos prisma
 vi.mock("../../src/lib/prisma.js", () => ({
@@ -136,7 +137,7 @@ describe("POST /api/questions", () => {
       });
 
     expect(response.status).toBe(403);
-    expect(response.body.error.code).toBe("NOT_ADMIN");
+    expect(response.body.error.code).toBe("FORBIDDEN");
   });
 
   /* Comprueba que un admin autenticado puede crear preguntas. */
@@ -194,5 +195,86 @@ describe("POST /api/questions", () => {
 
     // Confirma que el controlador llegó a usar el servicio de creación.
     expect(createQuestion).toHaveBeenCalledOnce();
+  });
+
+  // Un admin autenticado intenta crear una pregunta pero la categoría no existe.
+  // Debe devolver 400 VALIDATION_ERROR y NO llamar al servicio de creación.
+  it("devuelve 400 VALIDATION_ERROR si la categoría no existe al crear", async () => {
+    // Token válido que identifica al usuario 1.
+    const token = jwt.sign({}, process.env.JWT_SECRET!, {
+      algorithm: "HS256",
+      subject: "1",
+      expiresIn: "1h",
+    });
+
+    // authMiddleware encuentra al usuario.
+    // adminMiddleware comprueba que su rol es ADMIN.
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce({ id: 1 } as never)
+      .mockResolvedValueOnce({ role: "ADMIN" } as never);
+
+    // La categoría indicada NO existe.
+    vi.mocked(categoryExist).mockResolvedValue(false);
+
+    const response = await request(app)
+      .post("/api/questions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        categoryId: 999,
+        enunciado: "¿Cuál es la capital de Italia?",
+        opciones: ["Roma", "Milán", "Nápoles", "Turín"],
+        respuestaCorrecta: 0,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Los datos enviados no son válidos",
+      },
+    });
+    // No debe llamar al servicio ni crear nada
+    expect(createQuestion).not.toHaveBeenCalled();
+  });
+});
+describe("PUT /api/questions/:id", () => {
+  // Un admin autenticado intenta actualizar una pregunta pero la categoría no existe.
+  // Debe devolver 400 VALIDATION_ERROR y NO llamar al servicio de actualización.
+  it("devuelve 400 VALIDATION_ERROR si la categoría no existe al actualizar", async () => {
+    // Token válido que identifica al usuario 1.
+    const token = jwt.sign({}, process.env.JWT_SECRET!, {
+      algorithm: "HS256",
+      subject: "1",
+      expiresIn: "1h",
+    });
+
+    // authMiddleware encuentra al usuario.
+    // adminMiddleware comprueba que su rol es ADMIN.
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce({ id: 1 } as never)
+      .mockResolvedValueOnce({ role: "ADMIN" } as never);
+
+    // La categoría indicada NO existe.
+    vi.mocked(categoryExist).mockResolvedValue(false);
+
+    const response = await request(app)
+      .put("/api/questions/1")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        categoryId: 999,
+        enunciado: "Pregunta actualizada",
+        opciones: ["A", "B", "C", "D"],
+        respuestaCorrecta: 1,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Los datos enviados no son válidos",
+      },
+    });
+    // No debe llamar al servicio ni modificar nada
+    expect(updateQuestion).not.toHaveBeenCalled();
   });
 });

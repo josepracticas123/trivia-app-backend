@@ -20,7 +20,7 @@ export async function getGameController(req: Request, res: Response) {
   // ¿existe?
   const game = await getGameById(gameId);
   if (!game) {
-    return responderError(res, "GAME_NOT_FOUND");
+    return responderError(res, "GAME_ID_NOT_FOUND");
   }
 
   // ¿es participante? game.players es un array de userId

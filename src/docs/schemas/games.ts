@@ -109,4 +109,50 @@ export const gameSchemas = {
     },
     required: ["gameQuestionId", "isCorrect", "score", "finished"],
   },
+
+  /* Historial público de partidas de un usuario.
+     Igual que el controlador: id, estado, fechas y puntuación calculada. */
+  PartidaHistorial: {
+    type: "object",
+    properties: {
+      id: { type: "integer", example: 1 },
+      status: {
+        type: "string",
+        enum: ["ACTIVE", "FINISHED"],
+        example: "FINISHED",
+      },
+      createdAt: {
+        type: "string",
+        format: "date-time",
+        description: "Fecha y hora de creación de la partida.",
+        example: "2026-01-15T10:30:00Z",
+      },
+      finishedAt: {
+        type: "string",
+        format: "date-time",
+        nullable: true,
+        description:
+          "Fecha y hora de finalización de la partida; null si aún está activa.",
+        example: "2026-01-15T10:45:00Z",
+      },
+      score: {
+        type: "integer",
+        description: "Puntos acumulados (1 por acierto).",
+        example: 3,
+      },
+    },
+    required: ["id", "status", "createdAt", "finishedAt", "score"],
+  },
+
+  /* Envolvente del historial: lista de partidas públicas. */
+  HistorialPartidas: {
+    type: "object",
+    properties: {
+      games: {
+        type: "array",
+        items: { $ref: "#/components/schemas/PartidaHistorial" },
+      },
+    },
+    required: ["games"],
+  },
 };

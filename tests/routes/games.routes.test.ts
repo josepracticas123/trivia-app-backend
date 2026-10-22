@@ -102,7 +102,7 @@ describe("GET /api/games/:id", () => {
         .set("Authorization", `Bearer ${tokenDe(1)}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.error.code).toBe("PARTIDA_ID_INVALIDO");
+      expect(response.body.error.code).toBe("VALIDATION_ERROR");
       // La validación es ANTES del servicio: nunca se llega a consultar.
       expect(getGameById).not.toHaveBeenCalled();
     },
@@ -118,6 +118,10 @@ describe("GET /api/games/:id", () => {
 
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe("GAME_NOT_FOUND");
+    // El mensaje también forma parte del contrato anterior.
+    expect(response.body.error.message).toBe(
+      "El id de la partida no es válido",
+    );
   });
 
   // Existe pero el usuario autenticado no es participante → 403.
@@ -136,7 +140,7 @@ describe("GET /api/games/:id", () => {
       .set("Authorization", `Bearer ${tokenDe(1)}`);
 
     expect(response.status).toBe(403);
-    expect(response.body.error.code).toBe("NOT_PARTICIPANT");
+    expect(response.body.error.code).toBe("FORBIDDEN");
   });
 
   // El happy path: el controlador construye la respuesta PÚBLICA campo a campo.
@@ -263,7 +267,7 @@ describe("POST /api/games/:id/answers", () => {
         .send(bodyValido);
 
       expect(response.status).toBe(400);
-      expect(response.body.error.code).toBe("PARTIDA_ID_INVALIDO");
+      expect(response.body.error.code).toBe("VALIDATION_ERROR");
       expect(submitAnswer).not.toHaveBeenCalled();
     },
   );
@@ -291,7 +295,7 @@ describe("POST /api/games/:id/answers", () => {
   // Cada error del servicio tiene su HTTP (la tabla del controlador).
   it.each([
     ["GAME_NOT_FOUND", 404, "GAME_NOT_FOUND"],
-    ["NOT_PARTICIPANT", 403, "NOT_PARTICIPANT"],
+    ["NOT_PARTICIPANT", 403, "FORBIDDEN"],
     ["GAME_FINISHED", 409, "GAME_FINISHED"],
     ["WRONG_TURN", 409, "WRONG_TURN"],
     ["CHOICE_NOT_IN_QUESTION", 400, "CHOICE_NOT_IN_QUESTION"],

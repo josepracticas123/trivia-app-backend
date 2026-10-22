@@ -14,6 +14,11 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { gameRouter } from "../../src/routes/games.routes.js";
 import { meRouter } from "../../src/routes/me.routes.js";
 import { prisma } from "../../src/lib/prisma.js";
+import { asegurarBaseDePruebas } from "./helpers/db-guard.js";
+
+/* Abortamos al cargar el fichero si la URL no es la de pruebas.
+   Así ni siquiera se crea o se borra nada en una base ajena. */
+asegurarBaseDePruebas(process.env.DATABASE_URL);
 
 // App mínima: solo lo necesario para las rutas que probamos.
 const app = express();
@@ -30,15 +35,27 @@ function tokenDe(userId: number) {
   });
 }
 
-/* Vacía las tablas del test.
-   El orden importa: primero lo que depende de otras tablas. */
+/* Ids creados por estas pruebas. Solo se borra lo nuestro: nunca
+   datos que ya existieran en la base de pruebas. */
+const idsUsuarios: number[] = [];
+const idsPartidas: number[] = [];
+
+/* Vacía SOLO lo creado por este fichero.
+   Los borrados van en cascada desde Game y User (ver schema.prisma),
+   así que no hace falta borrar cada tabla hija a mano. */
 async function limpiarBaseDeDatos() {
-  await prisma.answer.deleteMany();
-  await prisma.gameChoice.deleteMany();
-  await prisma.gameQuestion.deleteMany();
-  await prisma.gamePlayer.deleteMany();
-  await prisma.game.deleteMany();
-  await prisma.user.deleteMany();
+  // Doble comprobación: nunca borrar si la base no es la de pruebas.
+  asegurarBaseDePruebas(process.env.DATABASE_URL);
+
+  if (idsPartidas.length > 0) {
+    await prisma.game.deleteMany({ where: { id: { in: idsPartidas } } });
+  }
+  if (idsUsuarios.length > 0) {
+    await prisma.user.deleteMany({ where: { id: { in: idsUsuarios } } });
+  }
+
+  idsPartidas.length = 0;
+  idsUsuarios.length = 0;
 }
 
 /* Crea dos usuarios y una partida que pertenece SOLO al usuario A.
@@ -50,9 +67,12 @@ async function escenarioDosUsuarios() {
   const usuarioB = await prisma.user.create({
     data: { email: "b@test.com", passwordHash: "x" },
   });
+  idsUsuarios.push(usuarioA.id, usuarioB.id);
+
   const partidaDeA = await prisma.game.create({
     data: { players: { create: { userId: usuarioA.id } } },
   });
+  idsPartidas.push(partidaDeA.id);
   return { usuarioA, usuarioB, partidaDeA };
 }
 

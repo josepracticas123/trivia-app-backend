@@ -73,14 +73,10 @@ export async function authMiddleware(
 
     return next();
   } catch (error) {
-    // Token caducado: estaba bien pero se le pasó el tiempo.
-    if (error instanceof jwt.TokenExpiredError) {
-      return responderMiddlewareError(res, "TOKEN_EXPIRED");
-    }
-
-    // Cualquier otro fallo de verificación (firma, formato...): inválido.
+    /* Cualquier fallo de verificación (firma, formato o caducidad)
+       conserva el mensaje del contrato anterior. */
     if (error instanceof jwt.JsonWebTokenError) {
-      return responderMiddlewareError(res, "INVALID_TOKEN");
+      return responderMiddlewareError(res, "TOKEN_INVALID_OR_EXPIRED");
     }
 
     // Los errores de base de datos u otros fallos pasan al middleware global.

@@ -23,7 +23,7 @@ export async function updateQuestionController(req: Request, res: Response) {
     resultadoValidacion.data.categoryId,
   );
   if (!existeCategoria) {
-    return responderError(res, "CATEGORY_NOT_FOUND");
+    return responderError(res, "VALIDATION_ERROR");
   }
 
   const id = Number(resultadoId.data.id);

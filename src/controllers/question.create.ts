@@ -16,7 +16,7 @@ export async function createQuestionController(req: Request, res: Response) {
     resultadoValidacion.data.categoryId,
   );
   if (!existeCategoria) {
-    return responderError(res, "CATEGORY_NOT_FOUND");
+    return responderError(res, "VALIDATION_ERROR");
   }
 
   const pregunta = await createQuestion(resultadoValidacion.data);

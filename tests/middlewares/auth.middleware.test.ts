@@ -77,7 +77,7 @@ describe("authMiddleware", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: {
         code: "INVALID_TOKEN",
-        message: "El token no es válido",
+        message: "El token no es válido o ha caducado",
       },
     });
 
@@ -119,7 +119,7 @@ describe("authMiddleware", () => {
     // Comprobamos el mensaje de error.
     expect(res.json).toHaveBeenCalledWith({
       error: {
-        code: "TOKEN_EXPIRED",
+        code: "INVALID_TOKEN",
         message: "El token no es válido o ha caducado",
       },
     });
@@ -166,7 +166,7 @@ describe("authMiddleware", () => {
     // Comprobamos el error esperado.
     expect(res.json).toHaveBeenCalledWith({
       error: {
-        code: "TOKEN_USER_MISSING",
+        code: "INVALID_TOKEN",
         message: "El usuario del token ya no existe",
       },
     });
@@ -324,7 +324,7 @@ describe("adminMiddleware", () => {
     // Comprobamos el error esperado.
     expect(res.json).toHaveBeenCalledWith({
       error: {
-        code: "NOT_ADMIN",
+        code: "FORBIDDEN",
         message: "No tienes permisos para realizar esta acción",
       },
     });

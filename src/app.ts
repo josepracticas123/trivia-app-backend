@@ -200,7 +200,7 @@ app.use("/api/questions", questionRouter);
  *               $ref: "#/components/schemas/Error"
  *             example:
  *               error:
- *                 code: PREGUNTA_ID_INVALIDO
+ *                 code: VALIDATION_ERROR
  *                 message: El id de la pregunta no es válido
  *       404:
  *         description: La pregunta no existe
@@ -356,7 +356,7 @@ app.use("/api/questions", questionRouter);
  *                 summary: ID no válido
  *                 value:
  *                   error:
- *                     code: PREGUNTA_ID_INVALIDO
+ *                     code: VALIDATION_ERROR
  *                     message: El id de la pregunta no es válido
  *               validationError:
  *                 summary: Datos no válidos
@@ -428,7 +428,7 @@ app.use("/api/questions", questionRouter);
  *               $ref: "#/components/schemas/Error"
  *             example:
  *               error:
- *                 code: PREGUNTA_ID_INVALIDO
+ *                 code: VALIDATION_ERROR
  *                 message: El id de la pregunta no es válido
  *       404:
  *         description: La pregunta no existe
@@ -749,6 +749,35 @@ app.use("/api/me", meRouter);
  *               $ref: "#/components/schemas/Error"
  */
 app.get("/api/me", authMiddleware, meController);
+
+/**
+ * @openapi
+ * /api/me/games:
+ *   get:
+ *     summary: Historial de partidas del usuario autenticado
+ *     description: Devuelve las partidas en las que participa el usuario autenticado, de la más reciente a la más antigua, con id, estado, fechas y puntuación.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista pública de partidas del usuario
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/HistorialPartidas"
+ *       401:
+ *         description: Token ausente, inválido o caducado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
 
 /* Si ninguna ruta anterior coincide con la petición,
  devolvemos un error 404.*/
