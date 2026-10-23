@@ -613,12 +613,47 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
 
 ## 15 · Prepara las consultas del frontend
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- **Lo que he construido:**
+  - Paginación de `GET /api/questions` con `page` (por defecto 1) y `pageSize` (por defecto 10, máximo 50), devolviendo `{ items, total, page, pageSize }`.
+  - Filtros de búsqueda por texto (`search`, insensible a mayúsculas en el enunciado) y por categoría (`categoryId`) en el listado de preguntas; el mismo filtro se aplica en `items` y en `total`.
+  - Orden estable con `id` como desempate (`orderBy: { id: "asc" }`).
+  - Paginación de `GET /api/me/games` con los mismos parámetros y metadatos.
+  - Configuración de CORS con `cors`, usando `FRONTEND_ORIGIN` y `credentials: true` (incluido preflight de `Authorization`).
+  - Esquema reutilizable `paginationQuerySchema` (Zod) con `coerce` para validar query params.
+  - Validación de `FRONTEND_ORIGIN` al arranque en `server.ts`.
+
+- **Conceptos y explicación propia:**
+  - **Paginación en la base, no en JS:** uso `skip`/`take` de Prisma para no cargar todas las filas. El hint del reto: no paginar en memoria.
+  - **Mismo `where` en `findMany` y `count`:** así `total` refleja los filtros aplicados a `items`.
+  - **Orden estable:** sin `orderBy` fijo, las filas pueden cambiar de página entre consultas. Uso `id` como desempate.
+  - **`coerce` en Zod:** los query params llegan como string; `z.coerce.number()` los convierte antes de validar. Si no es número, devuelve 400.
+  - **CORS:** el navegador bloquea peticiones cross-origin salvo que el servidor lo permita. `origin` define quién puede llamar; `credentials: true` permite enviar el header `Authorization`. CORS no sustituye a JWT: no bloquea clientes como curl, solo navegadores.
+  - **Preflight:** para peticiones con `Authorization`, el navegador envía `OPTIONS` primero; `cors` lo responde automáticamente.
+
+- **Pruebas y resultados:**
+  - `curl GET /api/questions?page=0` → 400 `VALIDATION_ERROR`.
+  - `curl GET /api/questions?page=uno` → 400 `VALIDATION_ERROR`.
+  - `curl GET /api/questions?pageSize=51` → 400 `VALIDATION_ERROR`.
+  - `curl GET /api/questions?page=999&pageSize=10` → 200 `{ items: [], total: 6, page: 999, pageSize: 10 }`.
+  - `curl GET /api/me/games?page=1&pageSize=5` con Bearer token → 200 `{ items: [], total: 0, page: 1, pageSize: 5 }`.
+  - Preflight CORS responde con `Access-Control-Allow-Origin` y `Access-Control-Allow-Credentials: true`.
+  - `npm run typecheck` → sin errores.
+  - `npm run build` → sin errores.
+
+- **Error y solución:**
+  - Al principio `getQuestions` recibía parámetros sueltos y `search`/`categoryId` eran opcionales mal tipados; se unificaron en un objeto `params` con tipos correctos.
+  - `getMyGames` devolvía un array; se cambió a `{ items, total, page, pageSize }` y se actualizó el controlador.
+  - El middleware CORS se colocó después de `/health` pero antes de las rutas `/api/*`, así se aplica a todas las rutas de la API.
+  - Ajuste posterior: `search` vacío se ignora (no filtra) y `page` se acota a máximo 1000 para evitar skips enormes.
+  - Actualizados esquemas y parámetros de Swagger para la respuesta paginada de preguntas e historial.
+  - Correcciones del tutor: CORS movido antes de express.json(); test de integración adaptado a items/total/page/pageSize; categoryId acotado a 2147483647; Swagger documenta 400 y límites; añadidos tests de paginación/filtros y de CORS (JSON malformado + preflight + cuerpo demasiado grande + categoryId fuera de rango). Setup de Vitest fija FRONTEND_ORIGIN para reproducibilidad.
+
+- **Dudas:**
+  - Corregido: `search` vacío se ignora (no filtra). `page` acotado a máximo 1000.
+
+- **PR y correcciones:**
+  - Rama `reto/15-filtros-paginacion-cors` hacia `develop`, sin merge.
+  - `npm run typecheck` y `npm run build` en verde.
 
 ## 16 · Crea una partida para dos
 

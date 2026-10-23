@@ -62,32 +62,29 @@ export async function getGameById(gameId: number) {
   return { ...game, score, nextQuestionId: siguiente?.id ?? null };
 }
 
-/* Historial de partidas de un usuario, de la más reciente a la más antigua.
-   El usuario viene de la sesión validada, nunca de un userId del cliente. */
-export async function getMyGames(userId: number) {
-  const partidas = await prisma.game.findMany({
-    where: {
-      // Solo las partidas en las que participa ESTE usuario.
-      players: { some: { userId } },
-    },
-    // De la más reciente a la más antigua.
-    orderBy: { createdAt: "desc" },
-    // Campos explícitos: nada de credenciales ni soluciones.
-    select: {
-      id: true,
-      status: true,
-      createdAt: true,
-      finishedAt: true,
-      questions: {
-        select: {
-          answers: { select: { isCorrect: true } },
+export async function getMyGames(userId: number, page: number, pageSize: number) {
+  const where = { players: { some: { userId } } };
+
+  const [partidas, total] = await Promise.all([
+    prisma.game.findMany({
+      where,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }], // orden estable (desempate por id)
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        finishedAt: true,
+        questions: {
+          select: { answers: { select: { isCorrect: true } } },
         },
       },
-    },
-  });
+    }),
+    prisma.game.count({ where }),
+  ]);
 
-  // Score calculado en el servidor: 1 punto por respuesta correcta.
-  return partidas.map((partida) => ({
+  const items = partidas.map((partida) => ({
     id: partida.id,
     status: partida.status,
     createdAt: partida.createdAt,
@@ -98,4 +95,6 @@ export async function getMyGames(userId: number) {
       0,
     ),
   }));
+
+  return { items, total, page, pageSize };
 }

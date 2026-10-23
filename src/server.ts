@@ -7,6 +7,18 @@ if (!process.env.JWT_SECRET) {
     "Falta JWT_SECRET en las variables de entorno. Configúrala en el archivo .env.",
   );
 }
+//Validamos que el secreto tenga la longitud mínima (recomendado > 32 caracteres)
+if(process.env.JWT_SECRET.length < 32){
+  throw new Error(
+        "JWT_SECRET debe tener al menos 32 caracteres. Genera uno con: node -e \"console.log(require('node:crypto').randomBytes(32).toString('hex'))\"",
+  );
+}
+// El origen del frontend es obligatorio para configurar CORS correctamente.
+if (!process.env.FRONTEND_ORIGIN) {
+  throw new Error(
+    "Falta FRONTEND_ORIGIN en las variables de entorno. Configúrala en el archivo .env.",
+  );
+}
 
 // Las variables de entorno son texto: convertimos PORT antes de usarlo.
 const port = Number(process.env.PORT ?? 3000);

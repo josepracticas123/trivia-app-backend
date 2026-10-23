@@ -1,3 +1,5 @@
+import { maxLength } from "zod";
+
 /* Esquemas OpenAPI de autenticación y usuario.
    Los nombres NO se cambian: los @openapi hacen $ref a ellos. */
 export const authSchemas = {
@@ -9,6 +11,7 @@ export const authSchemas = {
       email: {
         type: "string",
         format: "email",
+        maxLength: 254,
         description:
           "Se normaliza: se le quitan los espacios de los extremos y se pasa a minúsculas.",
         example: "juan@email.com",
@@ -16,6 +19,7 @@ export const authSchemas = {
       password: {
         type: "string",
         minLength: 8,
+        maxLength: 128,
         description: "Mínimo 8 caracteres; se usa tal cual, sin recortar.",
         example: "secreta123",
       },

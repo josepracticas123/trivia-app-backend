@@ -144,15 +144,18 @@ export const gameSchemas = {
     required: ["id", "status", "createdAt", "finishedAt", "score"],
   },
 
-  /* Envolvente del historial: lista de partidas públicas. */
+  /* Envolvente del historial: lista paginada de partidas públicas. */
   HistorialPartidas: {
     type: "object",
     properties: {
-      games: {
+      items: {
         type: "array",
         items: { $ref: "#/components/schemas/PartidaHistorial" },
       },
+      total: { type: "integer", example: 3 },
+      page: { type: "integer", example: 1 },
+      pageSize: { type: "integer", example: 10 },
     },
-    required: ["games"],
+    required: ["items", "total", "page", "pageSize"],
   },
 };
