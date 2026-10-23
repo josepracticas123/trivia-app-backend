@@ -52,8 +52,14 @@ model user {
   games        GamePlayer[]
 }
 
+enum GameMode {
+  INDIVIDUAL
+  MULTIPLAYER
+}
+
 // Estado de una partida.
 enum GameStatus {
+  WAITING
   ACTIVE
   FINISHED
 }
@@ -61,6 +67,8 @@ enum GameStatus {
 // Una partida de trivia.
 model Game {
   id         Int            @id @default(autoincrement())
+  mode       GameMode       @default(INDIVIDUAL)
+  code       String?        @unique
   status     GameStatus     @default(ACTIVE)
   createdAt  DateTime       @default(now())
   finishedAt DateTime?
@@ -76,6 +84,7 @@ model GamePlayer {
   gameId Int
   user   user @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId Int
+  isCreator Boolean @default(false)
 
   // Un usuario no puede estar dos veces en la misma partida.
   @@unique([gameId, userId])

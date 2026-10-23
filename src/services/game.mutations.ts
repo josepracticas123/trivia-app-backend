@@ -4,8 +4,145 @@ import { prisma } from "../lib/prisma.js";
 
 // Para reconocer los errores conocidos de Prisma (el P2002 de duplicados)
 import { Prisma } from "@prisma/client";
-import { PREGUNTAS_POR_PARTIDA, type SubmitAnswerResult } from "./game.types.js";
+import {
+  PREGUNTAS_POR_PARTIDA,
+  type SubmitAnswerResult,
+} from "./game.types.js";
 import { getRandomQuestions } from "./game.queries.js";
+
+/*Genera un código de invitación de 6 caracteres ( letras * números)
+ Se repite hasta encontrar uno que no exista en la base.*/
+export async function generarCodigoUnico(): Promise<string> {
+  const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sin caracteres ambiguos (0/O, 1/I)
+  let codigo = "";
+  let existe = true;
+
+  while (existe) {
+    codigo = "";
+    for (let i = 0; i < 6; i++) {
+      codigo += caracteres[Math.floor(Math.random() * caracteres.length)];
+    }
+    // Comprobamos si ya existe en la base.
+    const partida = await prisma.game.findUnique({ where: { code: codigo } });
+    existe = partida !== null;
+  }
+  return codigo;
+}
+
+/* Crea una partida multijugador en estado WAITING.
+   El creador queda vinculado como participante con isCreator = true.
+   Devuelve la partida con el código generado. */
+export async function createMultiplayerGame(userId: number) {
+  const codigo = await generarCodigoUnico();
+
+  const game = await prisma.game.create({
+    data: {
+      mode: "MULTIPLAYER",
+      code: codigo,
+      status: "WAITING",
+      players: {
+        create: { userId, isCreator: true },
+      },
+    },
+  });
+
+  return game;
+}
+/* Un usuario se une a una sala multijugador con un código.
+devuelve ok, true, game----------- o --------- ok, false, error*/
+export async function joinGame(userId: number, code: string) {
+  // 1- Buscamos la partida por código.
+  const game = await prisma.game.findUnique({
+    where: { code },
+    include: { players: true },
+  });
+  //codigo desconocido
+  if (!game) return { ok: false, error: "CODIGO_INVALIDO" };
+  //Solo s epuede unir si esta en WAITING
+  if (game.status !== "WAITING")
+    return { ok: false, error: "PARTIDA_YA_INICIADA" };
+
+  // Ya está dentro (no duplicar).
+  if (game.players.some((p) => p.userId === userId)) {
+    return { ok: true, game };
+  }
+  //Sala llena (máximo 2).
+  if (game.players.length >= 2) return { ok: false, error: "SALA_LLENA" };
+
+  // 2. Añadimos al participante de forma atómica: contamos y creamos en la misma transacción
+  //    para evitar que dos peticiones simultáneas pasen del límite de 2.
+  try {
+    await prisma.$transaction(async (tx) => {
+      const count = await tx.gamePlayer.count({ where: { gameId: game.id } });
+      if (count >= 2) throw new Error("SALA_LLENA");
+      await tx.gamePlayer.create({
+        data: { gameId: game.id, userId, isCreator: false },
+      });
+    }, { isolationLevel: "Serializable" });
+  } catch {
+    return { ok: false, error: "SALA_LLENA" };
+  }
+
+  return { ok: true, game };
+} /* El creador inicia la partida cuando hay 2 jugadores.
+   Asigna 5 preguntas compartidas, establece primer turno y pasa a ACTIVE. */
+export async function startGame(gameId: number, userId: number) {
+  // 1. Cargamos la partida con participantes.
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    include: { players: true },
+  });
+
+  if (!game) return { ok: false, error: "PARTIDA_NO_EXISTE" };
+  if (game.mode !== "MULTIPLAYER")
+    return { ok: false, error: "NO_ES_MULTIJUGADOR" };
+  if (game.status !== "WAITING")
+    return { ok: false, error: "PARTIDA_YA_INICIADA" };
+
+  // Solo el creador puede iniciar.
+  const creador = game.players.find((p) => p.isCreator);
+  if (!creador || creador.userId !== userId) {
+    return { ok: false, error: "NO_ES_CREADOR" };
+  }
+
+  // Deben ser exactamente 2 jugadores.
+  if (game.players.length !== 2)
+    return { ok: false, error: "FALTAN_JUGADORES" };
+
+  // 2. Elegimos 5 preguntas aleatorias compartidas.
+  const preguntas = await getRandomQuestions();
+  if (preguntas.length < 5) return { ok: false, error: "NO_HAY_PREGUNTAS" };
+
+  // 3. Creamos las preguntas congeladas y activamos la partida en una transacción.
+  await prisma.$transaction(async (tx) => {
+    for (const [indice, pregunta] of preguntas.entries()) {
+      await tx.gameQuestion.create({
+        data: {
+          gameId: game.id,
+          position: indice,
+          statement: pregunta.statement,
+          solution: pregunta.choices.findIndex((c) => c.isCorrect),
+          questionId: pregunta.id,
+          choices: {
+            create: pregunta.choices.map((c) => ({
+              text: c.text,
+              position: c.position,
+            })),
+          },
+        },
+      });
+    }
+
+    // Primer turno: el creador empieza (o el primer jugador). Aquí asignamos el turno
+    // implícitamente por position 0; el GET/answer usará el primer sin responder.
+    await tx.game.update({
+      where: { id: gameId },
+      data: { status: "ACTIVE" },
+    });
+  });
+
+  return { ok: true, game: { ...game, status: "ACTIVE" } };
+}
 
 /* Crea una partida individual para un usuario.
    Si hay menos de 5 preguntas en el catálogo, devuelve null. */
