@@ -92,6 +92,15 @@ describe("GET /api/questions - paginacion y filtros", () => {
     expect(res.body.total).toBe(0);
     // Confirma que el controlador llamó al servicio.
     expect(getQuestions).toHaveBeenCalled();
+    // Verifica que el controlador pasó los filtros correctos al servicio.
+    expect(getQuestions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: 1,
+        pageSize: 10,
+        search: "xyz",
+        categoryId: 999,
+      }),
+    );
   });
   it("categoryId fuera de rango devuelve 400", async () => {
     const res = await request(app).get("/api/questions?categoryId=2147483648");
