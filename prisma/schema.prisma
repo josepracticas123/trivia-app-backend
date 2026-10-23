@@ -52,8 +52,15 @@ model user {
   games        GamePlayer[]
 }
 
-// Estado de una partida.
+enum GameMode {
+  INDIVIDUAL
+  MULTIPLAYER
+}
+
+// Ciclo de vida de una partida: la sala multijugador espera al segundo
+// jugador (WAITING), después se juega (ACTIVE) y finalmente se cierra.
 enum GameStatus {
+  WAITING
   ACTIVE
   FINISHED
 }
@@ -61,6 +68,8 @@ enum GameStatus {
 // Una partida de trivia.
 model Game {
   id         Int            @id @default(autoincrement())
+  mode       GameMode       @default(INDIVIDUAL)
+  code       String?        @unique
   status     GameStatus     @default(ACTIVE)
   createdAt  DateTime       @default(now())
   finishedAt DateTime?
@@ -68,14 +77,15 @@ model Game {
   questions  GameQuestion[]
 }
 
-// Participantes de la partida. Aunque ahora sea individual,
-// usamos esta tabla para poder ampliar a dos jugadores después.
+// Participantes de una partida, tanto individual como multijugador.
+// isCreator identifica al usuario que puede iniciar una sala WAITING.
 model GamePlayer {
   id     Int  @id @default(autoincrement())
   game   Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
   gameId Int
   user   user @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId Int
+  isCreator Boolean @default(false)
 
   // Un usuario no puede estar dos veces en la misma partida.
   @@unique([gameId, userId])
@@ -111,7 +121,9 @@ model GameChoice {
   @@unique([gameQuestionId, position])
 }
 
-// Una fila por respuesta dada por el jugador.
+// Una respuesta por pregunta de partida. En el reto 16 la sala ya puede
+// iniciarse, pero los turnos y una respuesta de CADA jugador se añaden
+// en el reto 17; por eso todavía no se guarda userId aquí.
 model Answer {
   id             Int          @id @default(autoincrement())
   gameQuestion   GameQuestion @relation(fields: [gameQuestionId], references: [id], onDelete: Cascade)

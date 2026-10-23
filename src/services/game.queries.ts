@@ -29,7 +29,7 @@ export async function getRandomQuestions() {
 /* Busca una partida por su id con participantes, preguntas, opciones y respuestas.
    Devuelve null si no existe: el controlador responde 404.
    Añade score y nextQuestionId calculados SIEMPRE en el servidor
-   a partir de las respuestas guardadas (el cliente manda estas cifras). */
+   a partir de las respuestas guardadas; el cliente solo los recibe. */
 export async function getGameById(gameId: number) {
   const game = await prisma.game.findUnique({
     where: { id: gameId },

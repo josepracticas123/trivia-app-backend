@@ -657,12 +657,51 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
 
 ## 16 · Crea una partida para dos
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- **Lo que he construido:**
+  - Migración con `GameMode` (INDIVIDUAL/MULTIPLAYER), estado `WAITING` en `GameStatus`, campos `mode` y `code` (único, nullable) en `Game`, e `isCreator` en `GamePlayer`.
+  - `POST /api/games` con `mode: "MULTIPLAYER"` crea una partida en estado `WAITING` con un código de invitación de 6 caracteres (único).
+  - `POST /api/games/join` recibe un código y añade al participante (máximo 2, de forma atómica para evitar carreras).
+  - `POST /api/games/:id/start` inicia la partida (solo el creador, con 2 jugadores): asigna 5 preguntas compartidas, pasa a `ACTIVE`.
+  - Swagger documenta las nuevas rutas y el campo `mode`/`code`.
+  - Validaciones: código desconocido → 404; sala llena → 409; ya iniciada → 409; no creador → 403; solo un jugador → 400; usuario ajeno → 403.
+
+- **Conceptos y explicación propia:**
+  - **Modo individual vs multijugador:** el campo `mode` distingue ambas; por defecto `INDIVIDUAL` para no romper el reto 13.
+  - **Código de invitación:** no sustituye a JWT; solo permite entrar a la sala. La autenticación sigue siendo obligatoria.
+  - **Unicidad por partida y usuario:** `@@unique([gameId, userId])` evita duplicados.
+  - **Atomicidad en join:** transacción que cuenta y crea en el mismo bloque, para que dos peticiones simultáneas no superen 2 jugadores.
+  - **Creador:** `isCreator` en `GamePlayer` marca quién puede iniciar.
+  - **Preguntas compartidas:** se congelan al iniciar, igual que en individual (snapshot).
+  - **Estado WAITING:** la partida no tiene preguntas hasta que se inicia.
+
+- **Pruebas y resultados:**
+  - Crear sala → 201 `{ id, status: "WAITING", code }`.
+  - Unirse con código válido → 200 `{ id, status: "WAITING" }`.
+  - Iniciar (creador, 2 jugadores) → 200 `{ id, status: "ACTIVE" }` con 5 preguntas compartidas.
+  - GET por ambos participantes → 200 con el mismo estado.
+  - Código desconocido → 404 `GAME_NOT_FOUND`.
+  - Tercer jugador → 409 `GAME_FINISHED` (sala llena).
+  - No creador inicia → 403 `FORBIDDEN`.
+  - Solo un jugador inicia → 400 `VALIDATION_ERROR`.
+  - Usuario ajeno consulta → 403 `NOT_PARTICIPANT`.
+  - `npm run typecheck` y `npm run build` → sin errores.
+  - `npm test` → 67 tests superados (9 archivos).
+  - Pruebas de concurrencia real contra BD local (`tests/services/game.mutation.concurrency.test.ts`): 2 tests superados — dos `joinGame` simultáneos (solo uno entra, el otro recibe `SALA_LLENA`) y dos `startGame` simultáneos (uno inicia, el otro recibe `PARTIDA_YA_INICIADA`).
+
+- **Error y solución:**
+  - Typo `stauus` → `status` en `game.create.ts` (corregido).
+  - `res.locals.userid` → `res.locals.userId` (mayúscula) en `game.start.ts` (corregido).
+  - `startGame` devolvía `game` con status stale (WAITING) tras actualizar a ACTIVE; corregido devolviendo `{ ...game, status: "ACTIVE" }`.
+  - Transacción de `joinGame` ahora usa `isolationLevel: 'Serializable'` para evitar que dos peticiones simultáneas superen los 2 jugadores.
+  - `startGame` lanzaba `new Error("GAME_ALREADY_STARTED")` dentro de la transacción cuando la partida ya había pasado a ACTIVE, pero el `catch` no lo manejaba y llegaba al `throw error` final; corregido a `new Error("PARTIDA_YA_INICIADA")` para que el `catch` existente lo convierta en `{ ok: false, error: "PARTIDA_YA_INICIADA" }`.
+  - En el test de concurrencia, `game.code` tipa como `string | null` porque el campo `code` del modelo `Game` es `String?` (nullable) en Prisma; corregido con `codigo = game.code!` (seguro porque `createMultiplayerGame` siempre genera el código).
+  - Correcciones del tutor: validación de entradas con Zod (mode, code, idParamSchema); inicio atómico con updateMany condicionado; errores tipados (SALA_LLENA, PARTIDA_YA_INICIADA en catálogo); manejo de errores conocidos vs inesperados; as any eliminados de los controladores. Test de multijugador añadido (8 tests).
+
+- **Dudas:**
+  - Ninguna pendiente.
+
+- **PR y correcciones:**
+  - Rama `reto/16-sala-dos-jugadores` hacia `develop`, sin merge.
 
 ## 17 · Juega por turnos mediante HTTP
 
