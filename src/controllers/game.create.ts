@@ -1,35 +1,35 @@
 import type { Request, Response } from "express";
-import {
-  createGame,
-  createMultiplayerGame,
-} from "../services/game.services.js";
+import { createGame, createMultiplayerGame } from "../services/game.services.js";
 import { responderError } from "../errors/responderError.js";
+import { createGameSchema } from "../schemas/game.schema.js";
 
-/* Crea una partida individual para el usuario autenticado. */
+// Crea una partida individual o multijugador según el body.
 export async function createGameController(req: Request, res: Response) {
-  // El id del usuario lo puso el authMiddleware en res.locals.
-  const userId = res.locals.userId;
-  const mode = String(req.body?.mode ?? "INDIVIDUAL").toUpperCase();
+  const userId = res.locals.userId; // ID del usuario autenticado (del token).
 
-  if (mode == "MULTIPLAYER") {
+  // Valida el body con Zod (mode opcional, por defecto INDIVIDUAL).
+  const resultado = createGameSchema.safeParse(req.body ?? {});
+  if (!resultado.success) {
+    return responderError(res, "VALIDATION_ERROR");
+  }
+
+  const mode = resultado.data.mode;
+
+  // Modo multijugador: crea sala WAITING con código de invitación.
+  if (mode === "MULTIPLAYER") {
     const game = await createMultiplayerGame(userId);
-    // Devolvemos id, status code (para que el otro jugador pueda entrar)
     return res.status(201).json({
       id: game.id,
       status: game.status,
-      code: game.code,
+      code: game.code, // Código para que otro jugador entre.
     });
   }
 
-  // modo individual ( por defecto)
+  // Modo individual (por defecto).
   const game = await createGame(userId);
-
-  // Si no hay cinco preguntas en el catálogo, 409.
   if (!game) {
-    return responderError(res, "NOT_ENOUGH_QUESTIONS");
+    return responderError(res, "NOT_ENOUGH_QUESTIONS"); // Menos de 5 preguntas en catálogo.
   }
-
-  // Devolvemos solo el id y el estado; las preguntas se piden con GET.
   return res.status(201).json({
     id: game.id,
     status: game.status,

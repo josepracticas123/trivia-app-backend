@@ -1,15 +1,16 @@
 /* Esquemas OpenAPI de partidas y respuestas.
    Los nombres NO se cambian: los @openapi hacen $ref a ellos. */
 export const gameSchemas = {
-  /* Estado público de una partida individual,
-     igual que el controlador: no contiene solución ni questionId. */
+  /* Estado público de una partida, igual que el controlador:
+     no contiene solution ni questionId. Una sala WAITING aún no tiene
+     preguntas; cuando pase a ACTIVE tendrá las preguntas compartidas. */
   PartidaEstado: {
     type: "object",
     properties: {
       id: { type: "integer", example: 1 },
       status: {
         type: "string",
-        enum: ["ACTIVE", "FINISHED"], // enum GameStatus de Prisma
+        enum: ["WAITING", "ACTIVE", "FINISHED"], // enum GameStatus de Prisma
         example: "ACTIVE",
       },
       score: {
@@ -118,7 +119,7 @@ export const gameSchemas = {
       id: { type: "integer", example: 1 },
       status: {
         type: "string",
-        enum: ["ACTIVE", "FINISHED"],
+        enum: ["WAITING", "ACTIVE", "FINISHED"],
         example: "FINISHED",
       },
       createdAt: {

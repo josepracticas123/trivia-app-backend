@@ -88,6 +88,16 @@ export const ERRORES = {
     status: 409,
     message: "La partida ya ha finalizado",
   },
+  SALA_LLENA: {
+    code: "GAME_FULL",
+    status: 409,
+    message: "La sala ya tiene dos jugadores",
+  },
+  PARTIDA_YA_INICIADA: {
+    code: "GAME_ALREADY_STARTED",
+    status: 409,
+    message: "La partida ya ha sido iniciada",
+  },
   WRONG_TURN: {
     code: "WRONG_TURN",
     status: 409,

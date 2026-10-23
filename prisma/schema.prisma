@@ -57,7 +57,8 @@ enum GameMode {
   MULTIPLAYER
 }
 
-// Estado de una partida.
+// Ciclo de vida de una partida: la sala multijugador espera al segundo
+// jugador (WAITING), después se juega (ACTIVE) y finalmente se cierra.
 enum GameStatus {
   WAITING
   ACTIVE
@@ -76,8 +77,8 @@ model Game {
   questions  GameQuestion[]
 }
 
-// Participantes de la partida. Aunque ahora sea individual,
-// usamos esta tabla para poder ampliar a dos jugadores después.
+// Participantes de una partida, tanto individual como multijugador.
+// isCreator identifica al usuario que puede iniciar una sala WAITING.
 model GamePlayer {
   id     Int  @id @default(autoincrement())
   game   Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
@@ -120,7 +121,9 @@ model GameChoice {
   @@unique([gameQuestionId, position])
 }
 
-// Una fila por respuesta dada por el jugador.
+// Una respuesta por pregunta de partida. En el reto 16 la sala ya puede
+// iniciarse, pero los turnos y una respuesta de CADA jugador se añaden
+// en el reto 17; por eso todavía no se guarda userId aquí.
 model Answer {
   id             Int          @id @default(autoincrement())
   gameQuestion   GameQuestion @relation(fields: [gameQuestionId], references: [id], onDelete: Cascade)

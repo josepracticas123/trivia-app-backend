@@ -692,6 +692,7 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
   - `res.locals.userid` → `res.locals.userId` (mayúscula) en `game.start.ts` (corregido).
   - `startGame` devolvía `game` con status stale (WAITING) tras actualizar a ACTIVE; corregido devolviendo `{ ...game, status: "ACTIVE" }`.
   - Transacción de `joinGame` ahora usa `isolationLevel: 'Serializable'` para evitar que dos peticiones simultáneas superen los 2 jugadores.
+  - Correcciones del tutor: validación de entradas con Zod (mode, code, idParamSchema); inicio atómico con updateMany condicionado; errores tipados (SALA_LLENA, PARTIDA_YA_INICIADA en catálogo); manejo de errores conocidos vs inesperados; as any eliminados de los controladores. Test de multijugador añadido (8 tests).
 
 - **Dudas:**
   - El mapeo de errores del servicio a HTTP es manual (record); podría centralizarse en el futuro.

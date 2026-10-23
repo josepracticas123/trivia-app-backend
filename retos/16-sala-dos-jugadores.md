@@ -44,8 +44,8 @@ Estado inicial: **Completado** (pendiente de revisión del tutor).
 - PR y commit revisado: Rama `reto/16-sala-dos-jugadores` → PR hacia `develop` (sin merge). Commits: migración multijugador (GameMode, WAITING, code, isCreator), servicios createMultiplayerGame/joinGame/startGame, rutas y controladores, Swagger actualizado, APRENDIZAJE.md actualizado.
 - Prueba correcta (petición/acción y resultado): Crear sala → 201 `{ id, status: "WAITING", code }`. Unirse con código válido → 200 `{ id, status: "WAITING" }`. Iniciar (creador, 2 jugadores) → 200 `{ id, status: "ACTIVE" }` con 5 preguntas compartidas. GET por ambos participantes → 200 con el mismo estado.
 - Prueba inválida o fallo (petición/acción y resultado): Código desconocido → 404 `GAME_NOT_FOUND`. Tercer jugador → 409 `GAME_FINISHED` (sala llena). No creador inicia → 403 `FORBIDDEN`. Solo un jugador inicia → 400 `VALIDATION_ERROR`. Usuario ajeno consulta → 403 `NOT_PARTICIPANT`. Ya iniciada → 409.
-- Comandos y resultados: `npm run typecheck` → sin errores; `npm run build` → sin errores; `npm test` → 67 tests superados (9 archivos).
-- Dudas o correcciones: El mapeo de errores del servicio a HTTP es manual (record); podría centralizarse en el futuro. Transacción de join con aislamiento Serializable para evitar race condition de 3 jugadores. Swagger de join/start añadido.
+- Comandos y resultados: `npm run typecheck` → sin errores; `npm run build` → sin errores; `npm test` → 67 tests superados (9 archivos). Correcciones del tutor aplicadas y verificadas (validación Zod, inicio atómico, errores tipados, Serializable).
+- Dudas o correcciones: El mapeo de errores del servicio a HTTP es manual (record); podría centralizarse en el futuro. Transacción de join con aislamiento Serializable. Validación de entradas con Zod (mode, code, id). Inicio atómico con updateMany condicionado. Errores tipados sin as any. Swagger de join/start añadido.
 - Revisión y aprobación del tutor: pendiente.
 - Merge en `develop`: pendiente (no hacer merge hasta aprobación del tutor).
 

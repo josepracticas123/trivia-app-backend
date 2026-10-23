@@ -1,32 +1,24 @@
 import type { Request, Response } from "express";
-import { startGame } from "../services/game.mutations.js";
+import { startGame } from "../services/game.services.js";
 import { responderError } from "../errors/responderError.js";
+import { idParamSchema } from "../schemas/question-id.schema.js";
 
-//El creador inicia la partida multijugador
+// El creador inicia la partida multijugador.
 export async function startGameController(req: Request, res: Response) {
-  const userId = res.locals.userId;
-  const gameId = Number(req.params.id);
+  const userId = res.locals.userId; // ID del usuario autenticado.
 
-  // Validamos qu eel id se aun número válido
-  if (!Number.isInteger(gameId) || gameId < 1) {
-    return responderError(res, "VALIDATION_ERROR");
+  // Valida el id de la URL (1–2147483647).
+  const resultadoId = idParamSchema.safeParse(req.params);
+  if (!resultadoId.success) {
+    return responderError(res, "PARTIDA_ID_INVALIDO");
   }
+  const gameId = Number(resultadoId.data.id);
 
-  const resultado = (await startGame(gameId, userId)) as
-    | { ok: true; game: { id: number; status: string } }
-    | { ok: false; error: string };
+  // Llama al servicio; devuelve { ok, game } o { ok, error }.
+  const resultado = await startGame(gameId, userId);
 
   if (!resultado.ok) {
-    const mapa: Record<string, string> = {
-      PARTIDA_NO_EXISTE: "GAME_NOT_FOUND",
-      NO_ES_MULTIJUGADOR: "VALIDATION_ERROR",
-      PARTIDA_YA_INICIADA: "GAME_FINISHED",
-      NO_ES_CREADOR: "NOT_ADMIN",
-      FALTAN_JUGADORES: "VALIDATION_ERROR",
-      NO_HAY_PREGUNTAS: "NOT_ENOUGH_QUESTIONS",
-    };
-    const codigoError = mapa[resultado.error] ?? "VALIDATION_ERROR";
-    return responderError(res, codigoError as any);
+    return responderError(res, resultado.error);
   }
 
   return res
