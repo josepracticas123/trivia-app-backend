@@ -52,125 +52,166 @@ export async function createMultiplayerGame(userId: number) {
 
   return game;
 }
-/* Un usuario se une a una sala multijugador con un código.
-devuelve ok, true, game----------- o --------- ok, false, error*/
-// Un usuario se une a una sala multijugador con un código.
-// Devuelve { ok: true, game } o { ok: false, error }.
-export async function joinGame(userId: number, code: string): Promise<
-  | { ok: true; game: { id: number; status: string; code: string | null } }
-  | { ok: false; error: keyof typeof ERRORES }
-> {
-  const game = await prisma.game.findUnique({
-    where: { code },
-    include: { players: true },
-  });
+const MAX_REINTENTOS = 3;
+type JoinGameError =
+  | "GAME_NOT_FOUND"
+  | "PARTIDA_YA_INICIADA"
+  | "SALA_LLENA"
+  | "CONFLICTO_CONCURRENCIA";
 
-  if (!game) return { ok: false, error: "GAME_NOT_FOUND" };
-  if (game.status !== "WAITING")
-    return { ok: false, error: "PARTIDA_YA_INICIADA" };
-
-  if (game.players.some((p) => p.userId === userId)) {
-    return { ok: true, game };
-  }
-
-  if (game.players.length >= 2) return { ok: false, error: "SALA_LLENA" };
-
-  try {
-    await prisma.$transaction(
-      async (tx) => {
-        const count = await tx.gamePlayer.count({ where: { gameId: game.id } });
-        if (count >= 2) throw new Error("SALA_LLENA");
-        await tx.gamePlayer.create({
-          data: { gameId: game.id, userId, isCreator: false },
-        });
-      },
-      { isolationLevel: "Serializable" },
-    );
-  } catch (error) {
-    // Colisión del mismo usuario (unique constraint) → ya está dentro, OK.
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      return { ok: true, game };
-    }
-    // Sala llena (nuestro throw manual).
-    if (error instanceof Error && error.message === "SALA_LLENA") {
-      return { ok: false, error: "SALA_LLENA" };
-    }
-    // Cualquier otro fallo → se propaga al middleware global.
-    throw error;
-  }
-
-  return { ok: true, game };
-}
-
-/* El creador inicia la partida cuando hay 2 jugadores.
-   Asigna 5 preguntas compartidas, establece primer turno y pasa a ACTIVE. */
-// El creador inicia la partida cuando hay 2 jugadores.
-// Asigna 5 preguntas compartidas, pasa a ACTIVE (operación atómica).
-export async function startGame(gameId: number, userId: number): Promise<
+export async function joinGame(
+  userId: number,
+  code: string,
+): Promise<
   | { ok: true; game: { id: number; status: string } }
-  | { ok: false; error: keyof typeof ERRORES }
+  | { ok: false; error: JoinGameError }
 > {
-  // 1. Validaciones y lectura inicial: todavía no modificamos la base.
-  const game = await prisma.game.findUnique({
-    where: { id: gameId },
-    include: { players: true },
-  });
+  for (let intento = 0; intento < MAX_REINTENTOS; intento++) {
+    // Re-evaluamos el estado en cada intento.
+    const game = await prisma.game.findUnique({
+      where: { code },
+      include: { players: true },
+    });
 
-  if (!game) return { ok: false, error: "GAME_NOT_FOUND" };
-  if (game.mode !== "MULTIPLAYER") return { ok: false, error: "VALIDATION_ERROR" };
-  if (game.status !== "WAITING") return { ok: false, error: "PARTIDA_YA_INICIADA" };
-
-  const creador = game.players.find((p) => p.isCreator);
-  if (!creador || creador.userId !== userId) return { ok: false, error: "NOT_ADMIN" };
-  if (game.players.length !== 2) return { ok: false, error: "VALIDATION_ERROR" };
-
-  const preguntas = await getRandomQuestions();
-  if (preguntas.length < 5) return { ok: false, error: "NOT_ENOUGH_QUESTIONS" };
-
-  // 2. Transacción atómica: solo un intento gana la transición WAITING→ACTIVE.
-  try {
-    await prisma.$transaction(async (tx) => {
-      // Actualización condicionada: solo cambia si sigue WAITING.
-      const actualizado = await tx.game.updateMany({
-        where: { id: gameId, status: "WAITING" },
-        data: { status: "ACTIVE" },
-      });
-
-      // Si no se actualizó ninguna fila, otro intento ya inició la partida.
-      if (actualizado.count !== 1) {
-        throw new Error("PARTIDA_YA_INICIADA");
-      }
-
-      // Asignamos las 5 preguntas compartidas.
-      for (const [indice, pregunta] of preguntas.entries()) {
-        await tx.gameQuestion.create({
-          data: {
-            gameId: game.id,
-            position: indice,
-            statement: pregunta.statement,
-            solution: pregunta.choices.findIndex((c) => c.isCorrect),
-            questionId: pregunta.id,
-            choices: {
-              create: pregunta.choices.map((c) => ({ text: c.text, position: c.position })),
-            },
-          },
-        });
-      }
-    }, { isolationLevel: "Serializable" });
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    if (!game) return { ok: false, error: "GAME_NOT_FOUND" };
+    if (game.status !== "WAITING")
       return { ok: false, error: "PARTIDA_YA_INICIADA" };
+    if (game.players.some((p) => p.userId === userId))
+      return { ok: true, game };
+    if (game.players.length >= 2) return { ok: false, error: "SALA_LLENA" };
+
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          const count = await tx.gamePlayer.count({
+            where: { gameId: game.id },
+          });
+          if (count >= 2) throw new Error("SALA_LLENA");
+          await tx.gamePlayer.create({
+            data: { gameId: game.id, userId, isCreator: false },
+          });
+        },
+        { isolationLevel: "Serializable" },
+      );
+      return { ok: true, game };
+    } catch (error) {
+      // Colisión del mismo usuario (unique constraint) → ya está dentro.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        return { ok: true, game };
+      }
+      // Sala llena (nuestro throw manual).
+      if (error instanceof Error && error.message === "SALA_LLENA") {
+        return { ok: false, error: "SALA_LLENA" };
+      }
+      // Conflicto de concurrencia Serializable → reintentar.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034"
+      ) {
+        if (intento === MAX_REINTENTOS - 1) {
+          return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
+        }
+        continue;
+      }
+      // Cualquier otro fallo → se propaga.
+      throw error;
     }
-    if (error instanceof Error && error.message === "PARTIDA_YA_INICIADA") {
-      return { ok: false, error: "PARTIDA_YA_INICIADA" };
-    }
-    throw error;
   }
+  return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
+}
+type StartGameError =
+  | "GAME_NOT_FOUND"
+  | "VALIDATION_ERROR"
+  | "PARTIDA_YA_INICIADA"
+  | "NOT_ADMIN"
+  | "NOT_ENOUGH_QUESTIONS"
+  | "CONFLICTO_CONCURRENCIA";
 
-  return { ok: true, game: { ...game, status: "ACTIVE" } };
+export async function startGame(
+  gameId: number,
+  userId: number,
+): Promise<
+  | { ok: true; game: { id: number; status: string } }
+  | { ok: false; error: StartGameError }
+> {
+  for (let intento = 0; intento < MAX_REINTENTOS; intento++) {
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+      include: { players: true },
+    });
+
+    if (!game) return { ok: false, error: "GAME_NOT_FOUND" };
+    if (game.mode !== "MULTIPLAYER")
+      return { ok: false, error: "VALIDATION_ERROR" };
+    if (game.status !== "WAITING")
+      return { ok: false, error: "PARTIDA_YA_INICIADA" };
+
+    const creador = game.players.find((p) => p.isCreator);
+    if (!creador || creador.userId !== userId)
+      return { ok: false, error: "NOT_ADMIN" };
+    if (game.players.length !== 2)
+      return { ok: false, error: "VALIDATION_ERROR" };
+
+    const preguntas = await getRandomQuestions();
+    if (preguntas.length < 5)
+      return { ok: false, error: "NOT_ENOUGH_QUESTIONS" };
+
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          const actualizado = await tx.game.updateMany({
+            where: { id: gameId, status: "WAITING" },
+            data: { status: "ACTIVE" },
+          });
+          if (actualizado.count !== 1) throw new Error("PARTIDA_YA_INICIADA");
+
+          for (const [indice, pregunta] of preguntas.entries()) {
+            await tx.gameQuestion.create({
+              data: {
+                gameId: game.id,
+                position: indice,
+                statement: pregunta.statement,
+                solution: pregunta.choices.findIndex((c) => c.isCorrect),
+                questionId: pregunta.id,
+                choices: {
+                  create: pregunta.choices.map((c) => ({
+                    text: c.text,
+                    position: c.position,
+                  })),
+                },
+              },
+            });
+          }
+        },
+        { isolationLevel: "Serializable" },
+      );
+      return { ok: true, game: { ...game, status: "ACTIVE" } };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        return { ok: false, error: "PARTIDA_YA_INICIADA" };
+      }
+      if (error instanceof Error && error.message === "PARTIDA_YA_INICIADA") {
+        return { ok: false, error: "PARTIDA_YA_INICIADA" };
+      }
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034"
+      ) {
+        if (intento === MAX_REINTENTOS - 1) {
+          return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
+        }
+        continue;
+      }
+      throw error;
+    }
+  }
+  return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
 }
 /* Crea una partida individual para un usuario.
    Si hay menos de 5 preguntas en el catálogo, devuelve null. */

@@ -93,6 +93,11 @@ export const ERRORES = {
     status: 409,
     message: "La sala ya tiene dos jugadores",
   },
+  CONFLICTO_CONCURRENCIA: {
+    code: "CONFLICT",
+    status: 409,
+    message: "Conflicto de concurrencia, inténtalo de nuevo",
+  },
   PARTIDA_YA_INICIADA: {
     code: "GAME_ALREADY_STARTED",
     status: 409,

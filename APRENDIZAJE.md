@@ -686,16 +686,19 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
   - Usuario ajeno consulta → 403 `NOT_PARTICIPANT`.
   - `npm run typecheck` y `npm run build` → sin errores.
   - `npm test` → 67 tests superados (9 archivos).
+  - Pruebas de concurrencia real contra BD local (`tests/services/game.mutation.concurrency.test.ts`): 2 tests superados — dos `joinGame` simultáneos (solo uno entra, el otro recibe `SALA_LLENA`) y dos `startGame` simultáneos (uno inicia, el otro recibe `PARTIDA_YA_INICIADA`).
 
 - **Error y solución:**
   - Typo `stauus` → `status` en `game.create.ts` (corregido).
   - `res.locals.userid` → `res.locals.userId` (mayúscula) en `game.start.ts` (corregido).
   - `startGame` devolvía `game` con status stale (WAITING) tras actualizar a ACTIVE; corregido devolviendo `{ ...game, status: "ACTIVE" }`.
   - Transacción de `joinGame` ahora usa `isolationLevel: 'Serializable'` para evitar que dos peticiones simultáneas superen los 2 jugadores.
+  - `startGame` lanzaba `new Error("GAME_ALREADY_STARTED")` dentro de la transacción cuando la partida ya había pasado a ACTIVE, pero el `catch` no lo manejaba y llegaba al `throw error` final; corregido a `new Error("PARTIDA_YA_INICIADA")` para que el `catch` existente lo convierta en `{ ok: false, error: "PARTIDA_YA_INICIADA" }`.
+  - En el test de concurrencia, `game.code` tipa como `string | null` porque el campo `code` del modelo `Game` es `String?` (nullable) en Prisma; corregido con `codigo = game.code!` (seguro porque `createMultiplayerGame` siempre genera el código).
   - Correcciones del tutor: validación de entradas con Zod (mode, code, idParamSchema); inicio atómico con updateMany condicionado; errores tipados (SALA_LLENA, PARTIDA_YA_INICIADA en catálogo); manejo de errores conocidos vs inesperados; as any eliminados de los controladores. Test de multijugador añadido (8 tests).
 
 - **Dudas:**
-  - El mapeo de errores del servicio a HTTP es manual (record); podría centralizarse en el futuro.
+  - Ninguna pendiente.
 
 - **PR y correcciones:**
   - Rama `reto/16-sala-dos-jugadores` hacia `develop`, sin merge.
