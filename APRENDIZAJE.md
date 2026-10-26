@@ -685,8 +685,9 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
   - Solo un jugador inicia → 400 `VALIDATION_ERROR`.
   - Usuario ajeno consulta → 403 `NOT_PARTICIPANT`.
   - `npm run typecheck` y `npm run build` → sin errores.
-  - `npm test` → 67 tests superados (9 archivos).
-  - Pruebas de concurrencia real contra BD local (`tests/services/game.mutation.concurrency.test.ts`): 2 tests superados — dos `joinGame` simultáneos (solo uno entra, el otro recibe `SALA_LLENA`) y dos `startGame` simultáneos (uno inicia, el otro recibe `PARTIDA_YA_INICIADA`).
+  - `npm test` → 81 tests superados (11 archivos, con mocks y sin BBDD).
+  - `npm run test:integration` → 12 tests superados (3 archivos, contra `trivia_test`).
+  - Pruebas de concurrencia real contra BD local (`tests/integration/game.mutation.concurrency.test.ts`): 3 tests superados — entrada repetida del creador idempotente, dos usuarios nuevos compitiendo por la última plaza (solo uno entra, el otro recibe `SALA_LLENA`) y dos `startGame` simultáneos (uno inicia, el otro recibe `PARTIDA_YA_INICIADA`). Se ejecutan solo con `npm run test:integration` y pasan por `asegurarBaseDePruebas` antes de crear o borrar.
 
 - **Error y solución:**
   - Typo `stauus` → `status` en `game.create.ts` (corregido).
