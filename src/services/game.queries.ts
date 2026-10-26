@@ -1,13 +1,13 @@
-﻿/* Consultas de partidas: solo leen datos, no modifican nada.
-   EstÃ¡n separadas de las funciones que escriben (mutaciones) para que cada
-   fichero tenga un propÃ³sito claro y sea mÃ¡s fÃ¡cil de entender. */
+/* Consultas de partidas: solo leen datos, no modifican nada.
+   Están separadas de las funciones que escriben (mutaciones) para que cada
+   fichero tenga un propósito claro y sea máss fácil de entender. */
 import { prisma } from "../lib/prisma.js";
 
-/* Devuelve 5 preguntas aleatorias del catÃ¡logo con sus opciones ordenadas. */
+/* Devuelve 5 preguntas aleatorias del catálogo con sus opciones ordenadas. */
 export async function getRandomQuestions() {
   // Ejecutamos SQL directo porque Prisma no tiene forma sencilla de pedir
   // filas aleatorias. Usamos CAST porque los ids de PostgreSQL llegan como
-  // nÃºmeros grandes (bigint) y Prisma espera nÃºmeros normales.
+  // números grandes (bigint) y Prisma espera números normales.
   const filas = await prisma.$queryRaw<{ id: number }[]>`
     SELECT CAST(id AS INTEGER) AS id
     FROM "Question"
@@ -38,12 +38,12 @@ export async function getGameById(gameId: number, userId?: number) {
   const game = await prisma.game.findUnique({
     where: { id: gameId },
     include: {
-      // Participantes con su orden de turno y puntuaciÃ³n persistida.
+      // Participantes con su orden de turno y puntuaciónn persistida.
       players: {
         select: { userId: true, turnOrder: true, score: true },
         orderBy: { turnOrder: "asc" },
       },
-      // Las 5 preguntas en orden de juego (posiciÃ³n de 0..4), con sus opciones
+      // Las 5 preguntas en orden de juego (posición de 0..4), con sus opciones
       // y las respuestas ya dadas (con ellas calculamos el progreso).
       questions: {
         orderBy: { position: "asc" },
@@ -60,8 +60,8 @@ export async function getGameById(gameId: number, userId?: number) {
   const esMultijugador = game.mode === "MULTIPLAYER";
   const respuestasPorPregunta = esMultijugador ? 2 : 1;
 
-  // PuntuaciÃ³n revelada: en multijugador no se cuenta una respuesta hasta que
-  // la ronda tiene las dos. AsÃ­ una puntuaciÃ³n intermedia no delata al primero.
+  // Puntuación revelada: en multijugador no se cuenta una respuesta hasta que
+  // la ronda tiene las dos. Así­ una puntuación intermedia no delata al primero.
   const scoreRevelado = new Map<number, number>(
     game.players.map((player) => [player.userId, 0]),
   );
@@ -88,8 +88,8 @@ export async function getGameById(gameId: number, userId?: number) {
         esMultijugador && userId !== undefined
           ? question.answers.some((answer) => answer.userId === userId)
           : answeredCount > 0,
-      // Campos especÃ­ficos de multijugador para que el cliente pinte el turno
-      // sin calcular reglas: cuÃ¡ntos han respondido y si ya toca revelar.
+      // Campos especí­ficos de multijugador para que el cliente pinte el turno
+      // sin calcular reglas: cuántos han respondido y si ya toca revelar.
       ...(esMultijugador
         ? {
             answeredCount,
@@ -111,7 +111,7 @@ export async function getGameById(gameId: number, userId?: number) {
   const players = game.players.map((player) => ({
     userId: player.userId,
     turnOrder: player.turnOrder,
-    // En individual la puntuaciÃ³n guardada es la verdad; en multijugador se
+    // En individual la puntuación guardada es la verdad; en multijugador se
     // publica la revelada hasta que la partida termina.
     score: esMultijugador
       ? (scoreRevelado.get(player.userId) ?? 0)
@@ -140,7 +140,7 @@ export async function getGameById(gameId: number, userId?: number) {
         }
       : null;
 
-  // En individual se conserva el score del Ãºnico jugador. En multijugador el
+  // En individual se conserva el score del único jugador. En multijugador el
   // score superior es el del usuario autenticado, siempre que ya sea revelable.
   const scoreIndividual = esMultijugador
     ? (userId !== undefined ? (scoreRevelado.get(userId) ?? 0) : 0)
@@ -182,15 +182,15 @@ function calcularGanador(
 /* Puntos que el historial puede publicar de una partida para UN usuario.
 
    Usa el MISMO criterio que getGameById. Si divergieran, el historial y el
-   detalle darÃ­an nÃºmeros distintos para la misma partida y el jugador podrÃ­a
+   detalle darían números distintos para la misma partida y el jugador podría
    deducir el resultado pendiente mirando el historial.
 
    - Individual: cuentan todos sus aciertos (solo hay un jugador).
    - Multijugador terminado: cuentan todos sus aciertos; ya no hay nada oculto.
    - Multijugador en juego: SOLO cuentan las rondas ya reveladas, es decir,
      aquellas en las que respondieron los dos (answers.length >= 2).
-     Mientras el rival no haya respondido, su puntuaciÃ³n no puede delatar si
-     el primero acertÃ³. */
+     Mientras el rival no haya respondido, su puntuación no puede delatar si
+     el primero acertó. */
 function contarAciertosVisibles(
   partida: {
     mode: "INDIVIDUAL" | "MULTIPLAYER";
@@ -204,7 +204,7 @@ function contarAciertosVisibles(
   const todoRevelado = partida.status === "FINISHED";
 
   return partida.questions.reduce((total, pregunta) => {
-    // Â¿Podemos publicar esta ronda? En individual, siempre; en multijugador,
+    // ¿Podemos publicar esta ronda? En individual, siempre; en multijugador,
     // solo al terminar o cuando ya han respondido los dos.
     const rondaVisible =
       !esMultijugador || todoRevelado || pregunta.answers.length >= 2;
@@ -240,10 +240,10 @@ export async function getMyGames(userId: number, page: number, pageSize: number)
         mode: true,
         questions: {
           select: {
-            // Traemos QUIÃ‰N respondiÃ³, no solo si acertÃ³: sin el userId no
+            // Traemos QUIÉN respondió, no solo si acertó: sin el userId no
             // podemos separar los aciertos del usuario autenticado de los de
             // su rival (el fallo que sumaba los dos).
-            // El array completo nos da ademÃ¡s cuÃ¡ntos han respondido en cada
+            // El array completo nos da además cuántos han respondido en cada
             // ronda: answers.length.
             answers: { select: { userId: true, isCorrect: true } },
           },
