@@ -296,10 +296,12 @@ describe("POST /api/games/:id/answers", () => {
   it.each([
     ["GAME_NOT_FOUND", 404, "GAME_NOT_FOUND"],
     ["NOT_PARTICIPANT", 403, "FORBIDDEN"],
+    ["GAME_NOT_ACTIVE", 409, "GAME_NOT_ACTIVE"],
     ["GAME_FINISHED", 409, "GAME_FINISHED"],
     ["WRONG_TURN", 409, "WRONG_TURN"],
     ["CHOICE_NOT_IN_QUESTION", 400, "CHOICE_NOT_IN_QUESTION"],
     ["ALREADY_ANSWERED", 409, "ALREADY_ANSWERED"],
+    ["CONFLICTO_CONCURRENCIA", 409, "CONFLICT"],
   ] as const)(
     "traduce el error %s del servicio a HTTP %i",
     async (errorServicio, status, codigo) => {

@@ -38,7 +38,8 @@ tests/
     │   └── db-guard.ts
     ├── acceso-ajeno.test.ts
     ├── db-guard.test.ts
-    └── game.mutation.concurrency.test.ts
+    ├── game.mutation.concurrency.test.ts
+    └── game.turns.concurrency.test.ts
 ```
 
 Cada prueba vive en `tests/<carpeta>/`, en la misma subcarpeta que el
@@ -76,13 +77,18 @@ Comprueba que los errores de entrada no pierden las cabeceras CORS.
 - Cuerpo mayor de 100 KB → 413 manteniendo las cabeceras CORS.
 
 ### `games.multiplayer.test.ts`
-Prueba la sala multijugador por HTTP con los servicios simulados.
+Prueba la sala multijugador y los turnos por HTTP con los servicios simulados.
 - `POST /api/games` con `mode: "MULTIPLAYER"` → 201 `WAITING` con código;
   un modo inválido → 400 sin llamar al servicio.
 - `POST /api/games/join`: código con formato inválido → 400; unión correcta
   → 200; sala llena → 409.
 - `POST /api/games/:id/start`: no creador → 403; falta el segundo jugador
   → 400; inicio correcto → 200 `ACTIVE`.
+- `POST /api/games/:id/answers`: la primera respuesta de la ronda **no**
+  devuelve `isCorrect`, `score`, `results` ni `players`; la segunda revela
+  los dos resultados y las puntuaciones.
+- `GET /api/games/:id`: devuelve `currentTurn`, `answeredCount` y solo los
+  resultados/puntuaciones revelados, sin soluciones.
 
 ### `question.pagination.test.ts`
 Prueba el contrato paginado del catálogo (`GET /api/questions`).
@@ -103,7 +109,8 @@ Prueba los endpoints de partidas (`/api/games`).
 - `POST /api/games`: 401 sin token, 201 con `id` y `status`, 409 si no hay
   preguntas suficientes.
 - `GET /api/games/:id`: 404 si no existe, 403 si el usuario no participa,
-  200 con `score` y `nextQuestionId` y **sin las soluciones**.
+  200 con `score` y `nextQuestionId` y **sin las soluciones**; marca
+  `answered: false` en una pregunta pendiente.
 - `POST /api/games/:id/answers`: 401 sin token, 200 con `isCorrect`,
   `score` y `finished`.
 
@@ -120,15 +127,22 @@ Prueba los reintentos ante conflictos de concurrencia (`P2034`) de Prisma.
 
 ### `game.services.test.ts`
 Prueba la lógica de partidas sin pasar por HTTP.
-- `submitAnswer`: flujo completo de 5 respuestas (la puntuación sube y la
-  quinta cierra la partida); responder fuera de turno devuelve `WRONG_TURN`
-  sin guardar nada; opción de otra pregunta → `CHOICE_NOT_IN_QUESTION`;
-  no participante → `NOT_PARTICIPANT`; partida inexistente →
-  `GAME_NOT_FOUND`; partida cerrada → `GAME_FINISHED`; un duplicado
-  (P2002) → `ALREADY_ANSWERED` y no suma puntos.
-- `getGameById`: calcula `score` y `nextQuestionId` en el servidor; el
-  `score` solo suma aciertos y `nextQuestionId` es `null` al terminar;
-  devuelve `null` si la partida no existe.
+- `submitAnswer` en individual: flujo completo de 5 respuestas (la puntuación
+  sube y la quinta cierra la partida); responder fuera de turno devuelve
+  `WRONG_TURN` sin guardar nada; opción de otra pregunta →
+  `CHOICE_NOT_IN_QUESTION`; no participante → `NOT_PARTICIPANT`; partida
+  inexistente → `GAME_NOT_FOUND`; partida cerrada → `GAME_FINISHED`.
+- `submitAnswer` en multijugador: el jugador 1 responde primero y su acierto
+  no se revela; el jugador 2 no puede adelantarse; al responder el 2 se
+  revelan ambos resultados y se avanza de pregunta; reintentar la misma
+  respuesta → `ALREADY_ANSWERED`; un duplicado de BBDD (P2002) no suma
+  puntos; un conflicto de versión reintenta con el estado nuevo.
+- Finalización multijugador: 10 respuestas cierran la partida con ganador;
+  si empatan, `winnerUserId` es `null` e `isDraw` es `true`.
+- `getGameById`: calcula `score` y `nextQuestionId` en el servidor;
+  en multijugador oculta el resultado del primero hasta que responde el
+  segundo; `nextQuestionId` es `null` al terminar y devuelve `null` si la
+  partida no existe.
 
 ### `question.queries.test.ts`
 Prueba que `getQuestions` aplica el mismo `where` a `findMany` y a `count`,
@@ -174,6 +188,24 @@ borrar por error la base de desarrollo o producción.
   `PARTIDA_YA_INICIADA`; se crean exactamente 5 preguntas sin duplicados.
 - Prueba la concurrencia real (aislamiento Serializable y reintentos), algo
   que los mocks no pueden reproducir.
+
+### Qué comprueba `integration/game.turns.concurrency.test.ts`
+
+- Solo responde el jugador del turno y el acierto del jugador 1 queda
+  oculto hasta que responde el jugador 2 (ni la respuesta ni el `GET` lo
+  revelan).
+- Una petición ajena no puede responder en la partida.
+- Dos respuestas simultáneas del mismo jugador no duplican puntos: una se
+  acepta y la otra recibe `ALREADY_ANSWERED`.
+- Dos jugadores que responden a la vez dejan la partida coherente, sin
+  saltarse turnos ni perder respuestas.
+- Diez respuestas cierran la partida con el ganador correcto y no aceptan
+  más respuestas; un empate se cierra con `winnerUserId: null` e
+  `isDraw: true`.
+- Regresión del modo individual: cinco respuestas siguen cerrando la
+  partida y sumando puntos.
+- Comprueba la concurrencia real con PostgreSQL (control de versión y
+  reintentos), algo que los mocks no pueden reproducir.
 
 ### Qué comprueba `integration/db-guard.test.ts`
 
