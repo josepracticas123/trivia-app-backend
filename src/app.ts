@@ -603,10 +603,21 @@ app.use("/api/auth", authRouter);
  * @openapi
  * /api/games:
  *   post:
- *     summary: Crea una partida individual
- *     description: Crea una partida de cinco preguntas aleatorias para el usuario autenticado.
+ *     summary: Crea una partida (individual o multijugador)
+ *     description: Crea una partida. Si se envía mode "MULTIPLAYER", crea una sala en estado WAITING con un código de invitación; si no, crea una partida individual ACTIVE.
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               mode:
+ *                 type: string
+ *                 enum: [INDIVIDUAL, MULTIPLAYER]
+ *                 default: INDIVIDUAL
  *     responses:
  *       201:
  *         description: Partida creada
@@ -620,8 +631,12 @@ app.use("/api/auth", authRouter);
  *                   example: 1
  *                 status:
  *                   type: string
- *                   enum: [ACTIVE, FINISHED]
+ *                   enum: [WAITING, ACTIVE, FINISHED]
  *                   example: ACTIVE
+ *                 code:
+ *                   type: string
+ *                   description: Código de invitación (solo en modo MULTIPLAYER).
+ *                   example: "ABC123"
  *       401:
  *         description: Token ausente, inválido o caducado
  *         content:
@@ -630,6 +645,111 @@ app.use("/api/auth", authRouter);
  *               $ref: "#/components/schemas/Error"
  *       409:
  *         description: No hay cinco preguntas disponibles
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
+/**
+ * @openapi
+ * /api/games/join:
+ *   post:
+ *     summary: Unirse a una sala multijugador
+ *     description: Entra en una partida WAITING usando un codigo de invitacion.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               code:
+ *                 type: string
+ *                 example: "ABC123"
+ *             required: ["code"]
+ *     responses:
+ *       200:
+ *         description: Unido a la sala
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id: { type: integer, example: 1 }
+ *                 status: { type: string, enum: [WAITING, ACTIVE, FINISHED], example: WAITING }
+ *       400:
+ *         description: Codigo invalido o sala llena
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       401:
+ *         description: Token ausente, invalido o caducado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       404:
+ *         description: Codigo desconocido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       409:
+ *         description: Sala llena o ya iniciada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ * /api/games/{id}/start:
+ *   post:
+ *     summary: Iniciar una partida multijugador
+ *     description: Solo el creador puede iniciar cuando hay dos jugadores. Asigna 5 preguntas compartidas y pasa a ACTIVE.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer, minimum: 1 }
+ *     responses:
+ *       200:
+ *         description: Partida iniciada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id: { type: integer, example: 1 }
+ *                 status: { type: string, enum: [WAITING, ACTIVE, FINISHED], example: ACTIVE }
+ *       400:
+ *         description: Falta el segundo jugador o partida ya iniciada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       401:
+ *         description: Token ausente, invalido o caducado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       403:
+ *         description: No eres el creador
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       404:
+ *         description: Partida no existe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       409:
+ *         description: Partida ya iniciada
  *         content:
  *           application/json:
  *             schema:

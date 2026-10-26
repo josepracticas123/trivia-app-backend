@@ -2,3 +2,8 @@
 // para que controladores y pruebas sigan importando desde game.services.js.
 export { getRandomQuestions, getGameById, getMyGames } from "./game.queries.js";
 export { createGame, submitAnswer } from "./game.mutations.js";
+export {
+  createMultiplayerGame,
+  joinGame,
+  startGame,
+} from "./game.mutations.js";

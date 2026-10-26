@@ -5,3 +5,5 @@ export { createGameController } from "./game.create.js";
 export { getGameController } from "./game.get.js";
 export { answerController } from "./game.answer.js";
 export { getMyGamesController } from "./game.history.js";
+export { joinGameController } from "./game.join.js";
+export { startGameController } from "./game.start.js";

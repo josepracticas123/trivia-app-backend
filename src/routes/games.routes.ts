@@ -1,26 +1,26 @@
-// Importamos Router de Express: es el que crea "mini-apps" para agrupar rutas.
 import { Router } from "express";
-// El controlador que creaste ayer (el que llama a createGame).
 import {
   answerController,
   createGameController,
   getGameController,
+  joinGameController,
+  startGameController,
 } from "../controllers/game.controller.js";
-// El middleware del reto 12: comprueba el token JWT del usuario.
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 
-// Creamos el Router de partidas.
 export const gameRouter = Router();
 
-/* POST /api/games crea una partida; la cadena es:
-middleware primero (token) y, solo si pasa, el controlador después;
-si no hay token, 401 y ni se toca el controller. */
+// POST /api/games → crear partida (individual o multijugador según body)
 gameRouter.post("/", authMiddleware, createGameController);
 
-// GET /api/games/:id → estado de la partida. También privada:
-// primero authMiddleware (¿token?), después el controlador.
+// POST /api/games/join → unirse a una sala con código (debe ir ANTES de /:id)
+gameRouter.post("/join", authMiddleware, joinGameController);
+
+// POST /api/games/:id/start → iniciar la partida (solo creador)
+gameRouter.post("/:id/start", authMiddleware, startGameController);
+
+// GET /api/games/:id → estado de la partida
 gameRouter.get("/:id", authMiddleware, getGameController);
-/* POST /api/games/:id/answers responder la pregunta en turno.
-   Misma cadena que las otras: primero el token (401 si falta),
-   después el controlador. */
+
+// POST /api/games/:id/answers → responder
 gameRouter.post("/:id/answers", authMiddleware, answerController);

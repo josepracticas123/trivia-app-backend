@@ -16,14 +16,14 @@
 
 ## Comprueba tu entrega
 
-- [ ] Crear una sala vincula al creador y devuelve un código que permite entrar a otro usuario.
-- [ ] Entrar otra vez no duplica al participante y dos intentos simultáneos no permiten superar dos jugadores.
-- [ ] Código desconocido, sala llena o ya iniciada producen errores documentados.
-- [ ] Solo el creador puede iniciar; con un solo participante o partida ya iniciada se rechaza.
-- [ ] Un usuario que no pertenece a la sala no puede consultar su estado aunque conozca el ID.
-- [ ] Modo individual e historial siguen funcionando; Swagger describe las nuevas rutas.
-- [ ] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
-- [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
+- [x] Crear una sala vincula al creador y devuelve un código que permite entrar a otro usuario.
+- [x] Entrar otra vez no duplica al participante y dos intentos simultáneos no permiten superar dos jugadores.
+- [x] Código desconocido, sala llena o ya iniciada producen errores documentados.
+- [x] Solo el creador puede iniciar; con un solo participante o partida ya iniciada se rechaza.
+- [x] Un usuario que no pertenece a la sala no puede consultar su estado aunque conozca el ID.
+- [x] Modo individual e historial siguen funcionando; Swagger describe las nuevas rutas.
+- [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+- [x] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
 
@@ -39,15 +39,17 @@ El código es una invitación para entrar, no un sustituto de la autenticación.
 
 ## Registro de entrega y revisión
 
-Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
+Estado inicial: **Completado** (pendiente de revisión del tutor).
 
-- PR y commit revisado: pendiente.
-- Prueba correcta (petición/acción y resultado): pendiente.
-- Prueba inválida o fallo (petición/acción y resultado): pendiente.
-- Comandos y resultados: pendiente.
-- Dudas o correcciones: pendiente.
+- PR y commit revisado: Rama `reto/16-sala-dos-jugadores` → PR hacia `develop` (sin merge). Commits: migración multijugador (GameMode, WAITING, code, isCreator), servicios createMultiplayerGame/joinGame/startGame, rutas y controladores, Swagger actualizado, APRENDIZAJE.md actualizado.
+- Prueba correcta (petición/acción y resultado): Crear sala → 201 `{ id, status: "WAITING", code }`. Unirse con código válido → 200 `{ id, status: "WAITING" }`. Iniciar (creador, 2 jugadores) → 200 `{ id, status: "ACTIVE" }` con 5 preguntas compartidas. GET por ambos participantes → 200 con el mismo estado.
+- Prueba inválida o fallo (petición/acción y resultado): Código desconocido → 404 `GAME_NOT_FOUND`. Tercer jugador → 409 `GAME_FINISHED` (sala llena). No creador inicia → 403 `FORBIDDEN`. Solo un jugador inicia → 400 `VALIDATION_ERROR`. Usuario ajeno consulta → 403 `NOT_PARTICIPANT`. Ya iniciada → 409.
+- Comandos y resultados: `npm run typecheck` → sin errores; `npm run build` → sin errores; `npm test` → 81 tests superados (11 archivos, con mocks y sin BBDD); `npm run test:integration` → 12 tests superados (3 archivos, contra `trivia_test`). Correcciones del tutor aplicadas y verificadas (validación Zod, inicio atómico, errores tipados, Serializable). Pruebas de concurrencia real (`tests/integration/game.mutation.concurrency.test.ts`): 3 tests superados — entrada repetida del creador idempotente, dos usuarios nuevos compitiendo por la última plaza (solo uno entra, el otro recibe `SALA_LLENA`) y dos `startGame` simultáneos (uno inicia, el otro recibe `PARTIDA_YA_INICIADA`). Se ejecutan solo con `npm run test:integration` y pasan por `asegurarBaseDePruebas` antes de crear o borrar.
+- Dudas o correcciones: ninguna pendiente. Transacción de join con aislamiento Serializable aplicada y verificada. Validación de entradas con Zod (mode, code, id) aplicada. Inicio atómico con updateMany condicionado aplicado. Errores tipados sin as any aplicados. Swagger de join/start añadido. Errores adicionales corregidos y verificados: `startGame` lanzaba `GAME_ALREADY_STARTED` sin manejo en el `catch` (cambiado a `PARTIDA_YA_INICIADA`); en el test de concurrencia `game.code` tipa como `string | null` (nullable en Prisma); ahora se comprueba explícitamente que no sea `null` antes de usarlo.
 - Revisión y aprobación del tutor: pendiente.
-- Merge en `develop`: pendiente.
+- Merge en `develop`: pendiente (no hacer merge hasta aprobación del tutor).
+
+No empieces el siguiente reto hasta que este PR esté aprobado e integrado. Las correcciones van en la misma rama y el mismo PR.
 
 No empieces el siguiente reto hasta que este PR esté aprobado e integrado. Las correcciones van en la misma rama y el mismo PR.
 

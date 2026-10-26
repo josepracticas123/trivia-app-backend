@@ -1,10 +1,14 @@
 # Pruebas
 
-Pruebas automatizadas con **Vitest** + **Supertest**. Se ejecutan con:
+Pruebas automatizadas con **Vitest** + **Supertest**. La suite habitual se ejecuta con:
 
 ```bash
 npm test
 ```
+
+`npm test` usa mocks y **no se conecta a ninguna base de datos**. Las pruebas de
+`tests/integration/` se ejecutan aparte con `npm run test:integration`, porque
+usan PostgreSQL real y crean/borran datos.
 
 Las comprobaciones manuales de cada reto se anotan en su enunciado y en el PR.
 
@@ -18,16 +22,28 @@ tests/
 │   └── auth.middleware.test.ts
 ├── routes/
 │   ├── categories.routes.test.ts
+│   ├── cors-errors.test.ts
+│   ├── games.multiplayer.test.ts
 │   ├── games.routes.test.ts
+│   ├── question.pagination.test.ts
 │   └── question.routes.test.ts
 ├── services/
-│   └── game.services.test.ts
-└── integration/
-    └── acceso-ajeno.test.ts
+│   ├── game.mutation.p2034.test.ts
+│   ├── game.services.test.ts
+│   └── question.queries.test.ts
+├── setup/
+│   └── cors.setup.ts
+└── integration/          # BBDD real: solo con npm run test:integration
+    ├── helpers/
+    │   └── db-guard.ts
+    ├── acceso-ajeno.test.ts
+    ├── db-guard.test.ts
+    └── game.mutation.concurrency.test.ts
 ```
 
 Cada prueba vive en `tests/<carpeta>/`, en la misma subcarpeta que el
-código que prueba.
+código que prueba. La excepción es `tests/integration/`, que agrupa las
+pruebas que necesitan una base de datos real.
 
 ## controllers/
 
@@ -53,6 +69,28 @@ Prueba la autenticación y la autorización por rol.
 Prueba el listado de categorías (`GET /api/categories`).
 - Es pública: responde sin autenticación.
 
+### `cors-errors.test.ts`
+Comprueba que los errores de entrada no pierden las cabeceras CORS.
+- JSON malformado → 400 `INVALID_JSON` con `Access-Control-Allow-Origin`.
+- Preflight `OPTIONS` de `Authorization` responde con cabeceras CORS.
+- Cuerpo mayor de 100 KB → 413 manteniendo las cabeceras CORS.
+
+### `games.multiplayer.test.ts`
+Prueba la sala multijugador por HTTP con los servicios simulados.
+- `POST /api/games` con `mode: "MULTIPLAYER"` → 201 `WAITING` con código;
+  un modo inválido → 400 sin llamar al servicio.
+- `POST /api/games/join`: código con formato inválido → 400; unión correcta
+  → 200; sala llena → 409.
+- `POST /api/games/:id/start`: no creador → 403; falta el segundo jugador
+  → 400; inicio correcto → 200 `ACTIVE`.
+
+### `question.pagination.test.ts`
+Prueba el contrato paginado del catálogo (`GET /api/questions`).
+- Devuelve `items`, `total`, `page` y `pageSize`.
+- Una página sin resultados devuelve `items` vacío con metadatos coherentes.
+- `search` y `categoryId` se pasan al servicio y afectan a `items`/`total`.
+- `categoryId` fuera de rango → 400 `VALIDATION_ERROR` sin llamar al servicio.
+
 ### `question.routes.test.ts`
 Prueba el catálogo de preguntas (`GET` y `POST /api/questions`).
 - `GET /api/questions` es pública: responde aunque no se envíe token.
@@ -71,6 +109,15 @@ Prueba los endpoints de partidas (`/api/games`).
 
 ## services/
 
+### `game.mutation.p2034.test.ts`
+Prueba los reintentos ante conflictos de concurrencia (`P2034`) de Prisma.
+- `joinGame`: reintenta y completa tras un `P2034`; si el segundo intento
+  detecta la sala llena devuelve `SALA_LLENA`; si se agotan los reintentos
+  devuelve `CONFLICTO_CONCURRENCIA`.
+- `startGame`: reintenta y completa tras un `P2034`; si al reintentar la
+  partida ya está activa devuelve `PARTIDA_YA_INICIADA`; si se agotan los
+  reintentos devuelve `CONFLICTO_CONCURRENCIA`.
+
 ### `game.services.test.ts`
 Prueba la lógica de partidas sin pasar por HTTP.
 - `submitAnswer`: flujo completo de 5 respuestas (la puntuación sube y la
@@ -83,11 +130,16 @@ Prueba la lógica de partidas sin pasar por HTTP.
   `score` solo suma aciertos y `nextQuestionId` es `null` al terminar;
   devuelve `null` si la partida no existe.
 
+### `question.queries.test.ts`
+Prueba que `getQuestions` aplica el mismo `where` a `findMany` y a `count`,
+tanto con filtros (`search`, `categoryId`) como sin ellos.
+
 ## Pruebas de integración (con base de datos real)
 
 Los ficheros de `tests/integration/` **no usan mocks**: se conectan a una
 base de datos PostgreSQL real para comprobar reglas que solo tienen sentido
-contra la BBDD (por ejemplo, que un usuario no pueda ver la partida de otro).
+contra la BBDD (por ejemplo, que un usuario no pueda ver la partida de otro,
+o que dos operaciones simultáneas no corrompan el estado).
 
 Se ejecutan aparte, con su propia base de datos:
 
@@ -99,6 +151,11 @@ npm run test:integration
 > pruebas (ver abajo). Si no, fallarán al conectar. El comando `npm test`
 > no necesita nada de esto: funciona con mocks y sin BBDD.
 
+Todas las pruebas que crean o borran datos llaman antes a
+`asegurarBaseDePruebas()` (`integration/helpers/db-guard.ts`), que aborta si
+`DATABASE_URL` no apunta a `trivia_test` en `localhost`. Así no se puede
+borrar por error la base de desarrollo o producción.
+
 ### Qué comprueba `integration/acceso-ajeno.test.ts`
 
 - Un usuario **no** puede ver la partida de otro (403).
@@ -108,7 +165,24 @@ npm run test:integration
 - Si se elimina la comprobación de participante del controlador, **la
   prueba falla**: es la garantía de que cubre de verdad esa regla.
 
-### Configurar la base de datos de pruebas (una sola vez)
+### Qué comprueba `integration/game.mutation.concurrency.test.ts`
+
+- La entrada repetida del creador es idempotente: sigue habiendo 1 jugador.
+- Dos usuarios nuevos compiten por la última plaza: solo uno entra, el otro
+  recibe `SALA_LLENA` y en la BBDD quedan exactamente 2 jugadores.
+- Dos `startGame` simultáneos: solo uno inicia la partida y el otro recibe
+  `PARTIDA_YA_INICIADA`; se crean exactamente 5 preguntas sin duplicados.
+- Prueba la concurrencia real (aislamiento Serializable y reintentos), algo
+  que los mocks no pueden reproducir.
+
+### Qué comprueba `integration/db-guard.test.ts`
+
+- `asegurarBaseDePruebas` acepta `trivia_test` en `localhost`.
+- Rechaza otra base, una base cuyo nombre empieza por `trivia_test`
+  (por ejemplo `trivia_test_prod`), una URL vacía, una URL inválida y
+  `trivia_test` en un host remoto.
+
+## Configurar la base de datos de pruebas (una sola vez)
 
 Estas pruebas usan una BBDD **independiente y separada** de la de desarrollo.
 Nunca apuntes a la base de datos de producción/prácticas: estas pruebas
@@ -125,7 +199,7 @@ crean y borran datos.
 
 2. Crea el fichero `tests/.env.test` (está en `.gitignore`, no se sube) con:
 
-   ```
+   ```env
    DATABASE_URL="postgresql://postgres:TU_CONTRASEÑA@localhost:5432/trivia_test"
    JWT_SECRET="secreto-de-pruebas"
    ```

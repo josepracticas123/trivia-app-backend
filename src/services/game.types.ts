@@ -2,7 +2,7 @@
    Van aparte para que game.services.ts no engorde y el controlador
    pueda importarlos sin arrastrar toda la lógica. */
 
-// Preguntas que tiene cada partida individual.
+// Preguntas que se asignan al iniciar una partida, individual o multijugador.
 export const PREGUNTAS_POR_PARTIDA = 5;
 
 /* Resultado de submitAnswer: o el acierto con su puntuación,
