@@ -1,4 +1,6 @@
 import { app } from "./app.js";
+import { createServer } from "node:http";
+
 
 // El secreto es obligatorio para firmar los tokens JWT.
 // Si falta, detenemos el arranque para evitar usar una configuración insegura.
@@ -27,7 +29,8 @@ const port = Number(process.env.PORT ?? 3000);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error("PORT debe ser un número entero entre 1 y 65535");
 }
+export const server = createServer(app);
 
-app.listen(port, "0.0.0.0", () => {
+server.listen(port, "0.0.0.0", () => {
   console.log(`TriviaApp Backend disponible en http://localhost:${port}`);
 });

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { startGame } from "../services/game.services.js";
 import { responderError } from "../errors/responderError.js";
 import { idParamSchema } from "../schemas/question-id.schema.js";
+import { io } from "../sockets/index.js";
 
 // El creador inicia la partida multijugador.
 export async function startGameController(req: Request, res: Response) {
@@ -20,6 +21,11 @@ export async function startGameController(req: Request, res: Response) {
   if (!resultado.ok) {
     return responderError(res, resultado.error);
   }
+  io.to(`game:${gameId}`).emit("game:updated", {
+    id: gameId,
+    turnVersion: resultado.game.turnVersion,
+    status: resultado.game.status,
+  });
 
   return res
     .status(200)

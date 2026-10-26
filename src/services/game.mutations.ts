@@ -68,7 +68,7 @@ export async function joinGame(
   userId: number,
   code: string,
 ): Promise<
-  | { ok: true; game: { id: number; status: string } }
+  | { ok: true; game: { id: number; status: string; turnVersion: number } }
   | { ok: false; error: JoinGameError }
 > {
   for (let intento = 0; intento < MAX_REINTENTOS; intento++) {
@@ -156,7 +156,7 @@ export async function startGame(
   gameId: number,
   userId: number,
 ): Promise<
-  | { ok: true; game: { id: number; status: string } }
+  | { ok: true; game: { id: number; status: string; turnVersion: number } }
   | { ok: false; error: StartGameError }
 > {
   for (let intento = 0; intento < MAX_REINTENTOS; intento++) {
@@ -216,7 +216,8 @@ export async function startGame(
         },
         { isolationLevel: "Serializable" },
       );
-      return { ok: true, game: { ...game, status: "ACTIVE" } };
+      return { ok: true, game: { id: game.id, status: game.status, turnVersion: game.turnVersion } };
+
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
