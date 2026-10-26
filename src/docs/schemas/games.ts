@@ -13,6 +13,50 @@ export const gameSchemas = {
         enum: ["WAITING", "ACTIVE", "FINISHED"], // enum GameStatus de Prisma
         example: "ACTIVE",
       },
+      mode: {
+        type: "string",
+        enum: ["INDIVIDUAL", "MULTIPLAYER"],
+        description: "Solo se incluye en partidas multijugador.",
+        example: "MULTIPLAYER",
+      },
+      currentTurn: {
+        type: "object",
+        nullable: true,
+        description:
+          "Quién debe responder ahora y en qué pregunta. Null en individual, en WAITING o al terminar.",
+        properties: {
+          userId: { type: "integer", example: 2 },
+          turnOrder: { type: "integer", enum: [1, 2], example: 2 },
+          gameQuestionId: { type: "integer", example: 12 },
+        },
+        required: ["userId", "turnOrder", "gameQuestionId"],
+      },
+      players: {
+        type: "array",
+        description:
+          "Puntuación revelada de cada jugador. En multijugador no cuenta la ronda que aún espera al segundo jugador.",
+        items: {
+          type: "object",
+          properties: {
+            userId: { type: "integer", example: 1 },
+            turnOrder: { type: "integer", enum: [1, 2], example: 1 },
+            score: { type: "integer", example: 2 },
+          },
+          required: ["userId", "turnOrder", "score"],
+        },
+      },
+      winnerUserId: {
+        type: "integer",
+        nullable: true,
+        description:
+          "Ganador al terminar. Null si hay empate o la partida sigue activa.",
+        example: 2,
+      },
+      isDraw: {
+        type: "boolean",
+        description: "true si la partida terminó en empate.",
+        example: false,
+      },
       score: {
         type: "integer",
         description:
@@ -45,6 +89,37 @@ export const gameSchemas = {
             statement: {
               type: "string",
               example: "¿Cuál es la capital de Portugal?",
+            },
+            answered: {
+              type: "boolean",
+              description:
+                "En multijugador, true si el usuario autenticado ya respondió esta pregunta.",
+              example: true,
+            },
+            answeredCount: {
+              type: "integer",
+              description: "Respuestas recibidas para esta pregunta (0, 1 o 2).",
+              example: 1,
+            },
+            revealed: {
+              type: "boolean",
+              description:
+                "true cuando ya respondieron los dos jugadores y se pueden mostrar los resultados.",
+              example: false,
+            },
+            results: {
+              type: "array",
+              nullable: true,
+              description:
+                "Resultados de la ronda. Solo se rellenan cuando revealed es true.",
+              items: {
+                type: "object",
+                properties: {
+                  userId: { type: "integer", example: 1 },
+                  isCorrect: { type: "boolean", example: true },
+                },
+                required: ["userId", "isCorrect"],
+              },
             },
             choices: {
               type: "array",
@@ -87,7 +162,13 @@ export const gameSchemas = {
   },
 
   /* Resultado de responder: la puntuación la calcula SIEMPRE el backend,
-     el cliente solo la recibe (no puede enviarla ni modificarla). */
+     el cliente solo la recibe (no puede enviarla ni modificarla).
+
+     Individual: isCorrect, score y finished.
+     Multijugador, primera respuesta de la ronda: NO incluye isCorrect,
+     score, results ni players; solo el siguiente turno.
+     Multijugador, segunda respuesta: roundComplete = true y se revelan
+     results/players. La partida termina tras la décima respuesta. */
   RespuestaResultado: {
     type: "object",
     properties: {
@@ -95,20 +176,81 @@ export const gameSchemas = {
         type: "integer",
         example: 1,
       },
-      isCorrect: { type: "boolean", example: true },
+      isCorrect: {
+        type: "boolean",
+        description: "Solo en modo individual.",
+        example: true,
+      },
       score: {
         type: "integer",
-        description: "Puntos acumulados, calculados por el servidor.",
+        description: "Solo en modo individual: puntos acumulados.",
         example: 1,
+      },
+      roundComplete: {
+        type: "boolean",
+        description:
+          "Multijugador: true cuando ya respondieron los dos jugadores de la ronda.",
+        example: false,
       },
       finished: {
         type: "boolean",
         description:
-          "true al responder la quinta pregunta (partida FINISHED).",
+          "true al responder la quinta pregunta individual o la décima multijugador.",
+        example: false,
+      },
+      nextTurn: {
+        type: "object",
+        nullable: true,
+        description:
+          "Quién responde después y en qué pregunta; null al terminar.",
+        properties: {
+          userId: { type: "integer", example: 2 },
+          gameQuestionId: { type: "integer", example: 12 },
+        },
+        required: ["userId", "gameQuestionId"],
+      },
+      results: {
+        type: "array",
+        nullable: true,
+        description:
+          "Resultados de los dos jugadores. Null mientras la ronda no está completa.",
+        items: {
+          type: "object",
+          properties: {
+            userId: { type: "integer", example: 1 },
+            isCorrect: { type: "boolean", example: true },
+          },
+          required: ["userId", "isCorrect"],
+        },
+      },
+      players: {
+        type: "array",
+        nullable: true,
+        description:
+          "Puntuaciones reveladas. Null mientras la ronda no está completa.",
+        items: {
+          type: "object",
+          properties: {
+            userId: { type: "integer", example: 1 },
+            score: { type: "integer", example: 2 },
+          },
+          required: ["userId", "score"],
+        },
+      },
+      winnerUserId: {
+        type: "integer",
+        nullable: true,
+        description:
+          "Ganador al terminar; null en empate o mientras la partida sigue.",
+        example: null,
+      },
+      isDraw: {
+        type: "boolean",
+        description: "true si la partida terminó en empate.",
         example: false,
       },
     },
-    required: ["gameQuestionId", "isCorrect", "score", "finished"],
+    required: ["gameQuestionId", "finished"],
   },
 
   /* Historial público de partidas de un usuario.

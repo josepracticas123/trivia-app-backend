@@ -706,12 +706,55 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
 
 ## 17 · Juega por turnos mediante HTTP
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- **Lo que he construido:**
+  - Migración `20261026120000_reto17_turnos_concurrencia` con el estado del turno en `Game` (`currentPosition`, `currentTurnOrder`, `turnVersion`, `winnerUserId`), el turno y la puntuación persistida en `GamePlayer` (`turnOrder`, `score`) y el autor de cada respuesta en `Answer` (`userId`).
+  - La unicidad de respuestas pasa de `[gameQuestionId]` a `[gameQuestionId, userId]`: cada jugador puede responder una vez cada pregunta, pero la misma pregunta admite dos respuestas (una por jugador).
+  - Restricción única `[gameId, turnOrder]` para que dos jugadores no puedan ocupar el mismo turno.
+  - Migración de datos existentes: se asigna el turno 1 al creador, se rellenan puntuaciones y posiciones de partidas antiguas y se aborta si hay respuestas sin jugador asignable (no se borran datos en silencio).
+  - `submitAnswer` implementa la máquina de estados: por cada pregunta responde primero el jugador 1 y después el 2; solo al responder el 2 se avanza `currentPosition`. Con 10 respuestas (5 preguntas × 2 jugadores) la partida pasa a `FINISHED` y se calcula ganador o empate.
+  - Transacción atómica que comprueba estado, participante, turno, pregunta, duplicado y opción, y guarda en el mismo bloque la respuesta, el avance del turno, la puntuación y el cierre de la partida.
+  - Control de concurrencia optimista: `updateMany` condicionado por `turnVersion`, `currentPosition` y `currentTurnOrder`. Si otra petición se adelantó, actualiza 0 filas y se reintenta leyendo el estado nuevo (máximo 3 intentos; también se reintenta ante `P2034` de PostgreSQL).
+  - La restricción única `[gameQuestionId, userId]` actúa como última defensa: si dos peticiones del mismo jugador llegan a la vez, una recibe `ALREADY_ANSWERED` y no suma puntos.
+  - Respuesta HTTP de multijugador: la primera respuesta de la ronda devuelve solo `roundComplete: false`, `finished` y `nextTurn`; no incluye `isCorrect`, `score`, `results` ni `players`. La segunda revela `results`, `players`, `winnerUserId` e `isDraw`.
+  - `GET /api/games/:id` devuelve `currentTurn`, `answeredCount`, `revealed` y los resultados/puntuaciones solo de las rondas ya cerradas. Nunca incluye `solution` ni las opciones correctas.
+  - El modo individual conserva el contrato anterior (`isCorrect`, `score`, `finished`) para no romper el reto 13.
+  - Errores documentados: `WRONG_TURN` (409, fuera de turno o pregunta distinta), `ALREADY_ANSWERED` (409, duplicado), `GAME_NOT_ACTIVE` (409, sala aún en `WAITING`), `QUESTION_NOT_IN_GAME` (404), `NOT_PARTICIPANT` (403) y `CONFLICTO_CONCURRENCIA` (409, reintentos agotados).
+  - Swagger actualizado con los nuevos campos, el contrato de turnos y la ocultación de resultados.
+
+- **Conceptos y explicación propia:**
+  - **Turno alterno:** no basta con guardar las respuestas: hace falta un estado explícito (`currentPosition` + `currentTurnOrder`) que diga qué pregunta y qué jugador toca. Así el servidor decide el orden, no el frontend.
+  - **Atomicidad:** respuesta, turno, puntuación y cierre deben escribirse juntos. Si se guardara la respuesta y fallara el avance del turno, la partida quedaría a medio actualizar.
+  - **Concurrencia optimista:** en vez de bloquear la fila durante toda la petición, se lee una versión (`turnVersion`) y se actualiza solo si nadie la cambió. Si cambió, no se escribe nada y se reintenta. Es más barato que un bloqueo pesimista y suficiente para turnos.
+  - **Aislamiento Serializable + reintentos:** PostgreSQL puede abortar una transacción simultánea con `P2034`; el servicio la reintenta con el estado actualizado. La transacción sola no basta si dos peticiones leyeron el mismo turno.
+  - **Restricciones únicas:** son la garantía final en la base de datos, incluso si la lógica de aplicación tuviera una carrera. `[gameQuestionId, userId]` impide duplicar la respuesta de un jugador y `[gameId, turnOrder]` impide duplicar turnos.
+  - **Ocultar información:** mientras falta el segundo jugador, el primero no debe saber si acertó. Por eso no se devuelve `isCorrect` ni se suma su punto a la puntuación pública hasta cerrar la ronda.
+  - **Duplicado vs partida terminada:** un reintento de la última respuesta debe responder `ALREADY_ANSWERED`, no `GAME_FINISHED`; por eso la comprobación de duplicado va antes que la de estado final.
+  - **Puntuación persistida:** `GamePlayer.score` guarda los aciertos acumulados. La puntuación que se publica en multijugador se calcula solo con rondas reveladas para no filtrar el resultado pendiente.
+
+- **Pruebas y resultados:**
+  - `npm test` → 93 tests superados (11 archivos, con mocks y sin BBDD).
+  - `npm run test:integration` → 19 tests superados (4 archivos, contra `trivia_test`).
+  - `npm run typecheck` → sin errores.
+  - `npm run build` → sin errores.
+  - Nuevas pruebas unitarias (`tests/services/game.services.test.ts`): el jugador 1 responde primero sin revelar su acierto; el jugador 2 no puede adelantarse; al responder el 2 se revelan ambos resultados y se avanza; duplicado en memoria y duplicado `P2002`; conflicto de versión con reintento; 10 respuestas cierran con ganador; empate con `winnerUserId: null` e `isDraw: true`; `getGameById` oculta el resultado pendiente.
+  - Nuevas pruebas HTTP (`tests/routes/games.multiplayer.test.ts`): la primera respuesta de la ronda no incluye `isCorrect`, `score`, `results` ni `players`; la segunda los revela; el GET devuelve turno y puntuaciones reveladas sin soluciones.
+  - Nuevas pruebas de integración reales (`tests/integration/game.turns.concurrency.test.ts`): solo responde el jugador del turno y el acierto se oculta hasta el segundo; una petición ajena no puede responder; dos respuestas simultáneas del mismo jugador no duplican puntos; dos jugadores simultáneos dejan la partida coherente sin saltarse turnos; 10 respuestas cierran con ganador y no aceptan más; empate correcto; regresión del modo individual con 5 respuestas.
+  - Prueba manual: turno válido → 200 con `nextTurn`; turno inválido → 409 `WRONG_TURN`; duplicado → 409 `ALREADY_ANSWERED`; dos peticiones simultáneas → una aceptada y otra rechazada/reintentada sin duplicar puntos.
+
+- **Error y solución:**
+  - La base local `trivia_test` había quedado parcialmente modificada por un intento anterior de la migración. Se marcó como `rolled-back` con `prisma migrate resolve` y se hizo la migración idempotente (`ADD COLUMN IF NOT EXISTS`, `CREATE UNIQUE INDEX IF NOT EXISTS`, FK comprobada antes de crearla), sin borrar ni resetear la base.
+  - El primer enfoque leía el estado fuera de la transacción y usaba `isCreator` para decidir el turno; dos lecturas simultáneas podían ver el mismo turno. Se sustituyó por `turnOrder` explícito y control de versión dentro de la transacción.
+  - Al cerrar la última ronda, comprobar `GAME_FINISHED` antes que el duplicado devolvía el error equivocado al reintentar la última respuesta; se invirtió el orden y ahora es `ALREADY_ANSWERED`.
+  - `turnVersion` empieza en 0 y `startGame` lo incrementa a 1; tras una respuesta queda en 2 y tras dos en 3. Se usó como valor esperado en el `WHERE`, no como contador de respuestas.
+  - En multijugador no se podía reutilizar la respuesta individual con `isCorrect`/`score`: se separó el resultado en una unión discriminada (`INDIVIDUAL`/`MULTIPLAYER`) y se actualizó el controlador para no filtrar campos en la primera respuesta.
+  - El `GET` calculaba la puntuación sumando todas las respuestas, lo que revelaba el acierto del primero; ahora solo cuenta rondas con las dos respuestas (o la partida terminada).
+
+- **Dudas:**
+  - Pendiente de la revisión del tutor para validar el enfoque de concurrencia optimista frente a un bloqueo pesimista.
+
+- **PR y correcciones:**
+  - Rama `reto/17-turnos-concurrencia` hacia `develop`, sin merge hasta la aprobación del tutor.
+  - `npm run typecheck`, `npm run build`, `npm test` y `npm run test:integration` en verde.
 
 ## 18 · Añade avisos en tiempo real
 

@@ -37,22 +37,43 @@ export async function answerController(req: Request, res: Response) {
     const traduccion = {
       GAME_NOT_FOUND: "GAME_NOT_FOUND",
       NOT_PARTICIPANT: "NOT_PARTICIPANT",
+      GAME_NOT_ACTIVE: "GAME_NOT_ACTIVE",
       GAME_FINISHED: "GAME_FINISHED",
       QUESTION_NOT_IN_GAME: "QUESTION_NOT_IN_GAME",
       WRONG_TURN: "WRONG_TURN",
       CHOICE_NOT_IN_QUESTION: "CHOICE_NOT_IN_QUESTION",
       ALREADY_ANSWERED: "ALREADY_ANSWERED",
+      CONFLICTO_CONCURRENCIA: "CONFLICTO_CONCURRENCIA",
     } as const;
 
     return responderError(res, traduccion[resultado.error]);
   }
 
-  /* 5- 200: isCorrect y score los calculó el backend;
-     el cliente solo recibe, nunca envía ni modifica. */
+  // Modo individual: se conserva el contrato del reto 13.
+  if (resultado.mode !== "MULTIPLAYER") {
+    return res.status(200).json({
+      gameQuestionId: resultadoValidacion.data.gameQuestionId,
+      isCorrect: resultado.isCorrect,
+      score: resultado.score,
+      finished: resultado.finished,
+    });
+  }
+
+  /* Modo multijugador: la primera respuesta de la ronda NO devuelve
+     isCorrect, ni score, ni resultados. Solo cuando responde el segundo
+     jugador se revelan los dos resultados y las puntuaciones. */
   return res.status(200).json({
-    gameQuestionId: resultadoValidacion.data.gameQuestionId,
-    isCorrect: resultado.isCorrect,
-    score: resultado.score,
-    finished: resultado.finished, // true al responder la quinta
+    gameQuestionId: resultado.gameQuestionId,
+    roundComplete: resultado.roundComplete,
+    finished: resultado.finished,
+    nextTurn: resultado.nextTurn,
+    ...(resultado.roundComplete
+      ? {
+          results: resultado.results,
+          players: resultado.players,
+          winnerUserId: resultado.winnerUserId,
+          isDraw: resultado.isDraw,
+        }
+      : {}),
   });
 }

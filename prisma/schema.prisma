@@ -50,6 +50,7 @@ model user {
   createdAt    DateTime     @default(now())
   role         Role         @default(USER)
   games        GamePlayer[]
+  answers      Answer[]
 }
 
 enum GameMode {
@@ -73,6 +74,14 @@ model Game {
   status     GameStatus     @default(ACTIVE)
   createdAt  DateTime       @default(now())
   finishedAt DateTime?
+  // Estado del turno. Se actualiza en la MISMA transacción que la respuesta.
+  currentPosition  Int @default(0) // pregunta en juego (0..5; 5 = terminada)
+  currentTurnOrder Int @default(1) // jugador al que le toca (1 o 2)
+  // Control de versión optimista: cada respuesta lo incrementa. Dos
+  // peticiones que leyeron la misma versión no pueden guardar las dos.
+  turnVersion Int @default(0)
+  // Ganador calculado al cerrar; null en empate o mientras está activa.
+  winnerUserId Int?
   players    GamePlayer[]
   questions  GameQuestion[]
 }
@@ -86,9 +95,15 @@ model GamePlayer {
   user   user @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId Int
   isCreator Boolean @default(false)
+  // Orden de turno dentro de la partida: 1 responde antes que 2.
+  turnOrder Int
+  // Puntuación persistida; se incrementa en la transacción de la respuesta.
+  score Int @default(0)
 
   // Un usuario no puede estar dos veces en la misma partida.
   @@unique([gameId, userId])
+  // No puede haber dos jugadores con el mismo turno en una partida.
+  @@unique([gameId, turnOrder])
 }
 
 // Pregunta congelada dentro de una partida: copia del enunciado,
@@ -121,18 +136,21 @@ model GameChoice {
   @@unique([gameQuestionId, position])
 }
 
-// Una respuesta por pregunta de partida. En el reto 16 la sala ya puede
-// iniciarse, pero los turnos y una respuesta de CADA jugador se añaden
-// en el reto 17; por eso todavía no se guarda userId aquí.
+// Una respuesta por JUGADOR y pregunta de partida. En modo individual el
+// único participante responde una vez; en multijugador responden los dos,
+// primero el turnOrder 1 y después el 2.
 model Answer {
   id             Int          @id @default(autoincrement())
   gameQuestion   GameQuestion @relation(fields: [gameQuestionId], references: [id], onDelete: Cascade)
   gameQuestionId Int
   choice         GameChoice   @relation(fields: [choiceId], references: [id], onDelete: Cascade)
   choiceId       Int
+  user           user         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         Int
   isCorrect      Boolean
   createdAt      DateTime     @default(now())
 
-  // Responder dos veces la misma pregunta: imposible a nivel de base.
-  @@unique([gameQuestionId])
+  // Responder dos veces la misma pregunta con el mismo usuario: imposible.
+  // Es la última defensa frente a dos peticiones simultáneas.
+  @@unique([gameQuestionId, userId])
 }

@@ -88,6 +88,11 @@ export const ERRORES = {
     status: 409,
     message: "La partida ya ha finalizado",
   },
+  GAME_NOT_ACTIVE: {
+    code: "GAME_NOT_ACTIVE",
+    status: 409,
+    message: "La partida todavía no ha comenzado",
+  },
   SALA_LLENA: {
     code: "GAME_FULL",
     status: 409,
@@ -106,7 +111,7 @@ export const ERRORES = {
   WRONG_TURN: {
     code: "WRONG_TURN",
     status: 409,
-    message: "Todavía no le toca a esa pregunta",
+    message: "No es tu turno o esa pregunta no está en juego",
   },
   ALREADY_ANSWERED: {
     code: "ALREADY_ANSWERED",

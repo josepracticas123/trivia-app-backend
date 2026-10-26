@@ -136,6 +136,161 @@ describe("POST /api/games/join", () => {
   });
 });
 
+// Grupo: turnos y revelación de resultados (reto 17).
+describe("POST /api/games/:id/answers - turnos multijugador", () => {
+  const body = { gameQuestionId: 12, choiceId: 45 };
+
+  it("la primera respuesta de la ronda no revela acierto ni puntuación", async () => {
+    vi.mocked(submitAnswer).mockResolvedValue({
+      ok: true,
+      mode: "MULTIPLAYER",
+      gameQuestionId: 12,
+      roundComplete: false,
+      finished: false,
+      nextTurn: { userId: 2, gameQuestionId: 12 },
+      results: null,
+      players: null,
+      winnerUserId: null,
+      isDraw: false,
+    } as never);
+
+    const res = await request(app)
+      .post("/api/games/1/answers")
+      .set("Authorization", `Bearer ${tokenDe(1)}`)
+      .send(body);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      gameQuestionId: 12,
+      roundComplete: false,
+      finished: false,
+      nextTurn: { userId: 2, gameQuestionId: 12 },
+    });
+    expect(res.body).not.toHaveProperty("isCorrect");
+    expect(res.body).not.toHaveProperty("score");
+    expect(res.body).not.toHaveProperty("results");
+  });
+
+  it("la segunda respuesta revela los dos resultados y las puntuaciones", async () => {
+    vi.mocked(submitAnswer).mockResolvedValue({
+      ok: true,
+      mode: "MULTIPLAYER",
+      gameQuestionId: 12,
+      roundComplete: true,
+      finished: false,
+      nextTurn: { userId: 1, gameQuestionId: 13 },
+      results: [
+        { userId: 1, isCorrect: true },
+        { userId: 2, isCorrect: false },
+      ],
+      players: [
+        { userId: 1, score: 1 },
+        { userId: 2, score: 0 },
+      ],
+      winnerUserId: null,
+      isDraw: false,
+    } as never);
+
+    const res = await request(app)
+      .post("/api/games/1/answers")
+      .set("Authorization", `Bearer ${tokenDe(2)}`)
+      .send(body);
+
+    expect(res.status).toBe(200);
+    expect(res.body.results).toEqual([
+      { userId: 1, isCorrect: true },
+      { userId: 2, isCorrect: false },
+    ]);
+    expect(res.body.players).toEqual([
+      { userId: 1, score: 1 },
+      { userId: 2, score: 0 },
+    ]);
+    expect(res.body.nextTurn).toEqual({ userId: 1, gameQuestionId: 13 });
+  });
+
+  it.each([
+    ["GAME_NOT_ACTIVE", 409, "GAME_NOT_ACTIVE"],
+    ["CONFLICTO_CONCURRENCIA", 409, "CONFLICT"],
+  ] as const)(
+    "traduce %s a HTTP %i",
+    async (errorServicio, status, codigo) => {
+      vi.mocked(submitAnswer).mockResolvedValue({
+        ok: false,
+        error: errorServicio,
+      } as never);
+
+      const res = await request(app)
+        .post("/api/games/1/answers")
+        .set("Authorization", `Bearer ${tokenDe(1)}`)
+        .send(body);
+
+      expect(res.status).toBe(status);
+      expect(res.body.error.code).toBe(codigo);
+    },
+  );
+});
+
+// Grupo: estado público del multijugador.
+describe("GET /api/games/:id - estado multijugador", () => {
+  it("devuelve el turno y las puntuaciones reveladas, sin soluciones", async () => {
+    vi.mocked(getGameById).mockResolvedValue({
+      id: 1,
+      mode: "MULTIPLAYER",
+      status: "ACTIVE",
+      score: 0,
+      nextQuestionId: 12,
+      createdAt: new Date("2026-10-01T10:00:00.000Z"),
+      finishedAt: null,
+      currentTurn: { userId: 2, turnOrder: 2, gameQuestionId: 12 },
+      players: [
+        { userId: 1, turnOrder: 1, score: 0 },
+        { userId: 2, turnOrder: 2, score: 0 },
+      ],
+      winnerUserId: null,
+      isDraw: false,
+      playersRaw: [{ userId: 1 }],
+      questions: [
+        {
+          id: 12,
+          position: 0,
+          statement: "¿Capital de Portugal?",
+          solution: 0, // no debe salir
+          answered: false,
+          answeredCount: 1,
+          revealed: false,
+          results: null,
+          choices: [{ id: 45, text: "Lisboa", position: 0 }],
+          answers: [{ userId: 1, isCorrect: true }],
+        },
+      ],
+    } as never);
+
+    const res = await request(app)
+      .get("/api/games/1")
+      .set("Authorization", `Bearer ${tokenDe(2)}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.mode).toBe("MULTIPLAYER");
+    expect(res.body.currentTurn).toEqual({
+      userId: 2,
+      turnOrder: 2,
+      gameQuestionId: 12,
+    });
+    expect(res.body.players).toEqual([
+      { userId: 1, turnOrder: 1, score: 0 },
+      { userId: 2, turnOrder: 2, score: 0 },
+    ]);
+    expect(res.body.questions[0]).toMatchObject({
+      answered: false,
+      answeredCount: 1,
+      revealed: false,
+      results: null,
+    });
+    expect(res.body.questions[0]).not.toHaveProperty("solution");
+    expect(res.body.questions[0]).not.toHaveProperty("answers");
+  });
+});
+
 // Grupo: iniciar partida.
 describe("POST /api/games/:id/start", () => {
   // Test: no creador devuelve 403.

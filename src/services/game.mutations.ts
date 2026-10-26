@@ -7,6 +7,10 @@ import { ERRORES } from "../errors/errorCatalog.js";
 import { Prisma } from "@prisma/client";
 import {
   PREGUNTAS_POR_PARTIDA,
+  RESPUESTAS_POR_PREGUNTA_MULTIJUGADOR,
+  type PuntuacionJugador,
+  type ResultadoRonda,
+  type SiguienteTurno,
   type SubmitAnswerResult,
 } from "./game.types.js";
 import { getRandomQuestions } from "./game.queries.js";
@@ -45,7 +49,8 @@ export async function createMultiplayerGame(userId: number) {
       code: codigo,
       status: "WAITING",
       players: {
-        create: { userId, isCreator: true },
+        // El creador es siempre el jugador 1.
+        create: { userId, isCreator: true, turnOrder: 1 },
       },
     },
   });
@@ -88,19 +93,36 @@ export async function joinGame(
           });
           if (count >= 2) throw new Error("SALA_LLENA");
           await tx.gamePlayer.create({
-            data: { gameId: game.id, userId, isCreator: false },
+            data: {
+              gameId: game.id,
+              userId,
+              isCreator: false,
+              // El primer jugador que entra ocupa el turno 2.
+              turnOrder: count + 1,
+            },
           });
         },
         { isolationLevel: "Serializable" },
       );
       return { ok: true, game };
     } catch (error) {
-      // Colisión del mismo usuario (unique constraint) → ya está dentro.
+      /* P2002 puede significar dos cosas:
+         - este mismo usuario ya estaba dentro (idempotente);
+         - otro usuario se ha quedado con la plaza o con el turnOrder. En ese
+           caso hay que releer y, si la sala ya está llena, devolver SALA_LLENA. */
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
-        return { ok: true, game };
+        const yaDentro = await prisma.gamePlayer.findUnique({
+          where: { gameId_userId: { gameId: game.id, userId } },
+        });
+        if (yaDentro) return { ok: true, game };
+
+        if (intento === MAX_REINTENTOS - 1) {
+          return { ok: false, error: "SALA_LLENA" };
+        }
+        continue;
       }
       // Sala llena (nuestro throw manual).
       if (error instanceof Error && error.message === "SALA_LLENA") {
@@ -164,7 +186,13 @@ export async function startGame(
         async (tx) => {
           const actualizado = await tx.game.updateMany({
             where: { id: gameId, status: "WAITING" },
-            data: { status: "ACTIVE" },
+            data: {
+              status: "ACTIVE",
+              // Empieza la primera pregunta y el turno del jugador 1.
+              currentPosition: 0,
+              currentTurnOrder: 1,
+              turnVersion: { increment: 1 },
+            },
           });
           if (actualizado.count !== 1) throw new Error("PARTIDA_YA_INICIADA");
 
@@ -231,8 +259,9 @@ export async function createGame(userId: number) {
     const game = await tx.game.create({
       data: {
         players: {
-          // 2. El participante: el usuario autenticado.
-          create: { userId },
+          // 2. El participante: el usuario autenticado. En individual
+          //    también ocupa el turno 1, pero responde una sola vez.
+          create: { userId, isCreator: true, turnOrder: 1 },
         },
       },
     });
@@ -263,91 +292,243 @@ export async function createGame(userId: number) {
   });
 }
 
-/* Registra la respuesta de la lógica actual de partida.
-   Una GameQuestion admite una sola respuesta; el reto 17 ampliará esta
-   regla para guardar los turnos y respuestas de los dos jugadores. */
+/* Carga la partida con todo lo necesario para validar una respuesta:
+   participantes con su turno, preguntas en orden, opciones y respuestas. */
+async function cargarPartidaParaResponder(gameId: number) {
+  return prisma.game.findUnique({
+    where: { id: gameId },
+    include: {
+      players: {
+        select: { userId: true, turnOrder: true, score: true },
+        orderBy: { turnOrder: "asc" },
+      },
+      questions: {
+        orderBy: { position: "asc" },
+        include: {
+          choices: { orderBy: { position: "asc" } },
+          answers: { select: { userId: true, isCorrect: true } },
+        },
+      },
+    },
+  });
+}
+
+/* Calcula el ganador con las puntuaciones ya actualizadas.
+   Devuelve null cuando hay empate entre los dos jugadores. */
+function calcularGanador(players: PuntuacionJugador[]): number | null {
+  if (players.length !== 2) return null;
+  const [primero, segundo] = players;
+  if (primero.score === segundo.score) return null;
+  return primero.score > segundo.score ? primero.userId : segundo.userId;
+}
+
+/* Registra una respuesta individual o multijugador.
+
+   Concurrencia: cada intento lee el estado y después intenta actualizar la
+   partida con un WHERE que incluye turnVersion, currentPosition y
+   currentTurnOrder. Si otra petición se adelantó, updateMany devuelve 0 y se
+   reintenta con el estado nuevo. La restricción única
+   [gameQuestionId, userId] es la última defensa contra duplicados. */
 export async function submitAnswer(
   gameId: number,
   userId: number,
   gameQuestionId: number,
   choiceId: number,
 ): Promise<SubmitAnswerResult> {
-  // BLOQUE 1: cargar la partida con participantes, preguntas y respuestas
-  const game = await prisma.game.findUnique({
-    where: { id: gameId },
-    include: {
-      players: { select: { userId: true } },
-      questions: {
-        orderBy: { position: "asc" }, // en orden de juego
-        include: { answers: { select: { isCorrect: true } } },
-      },
-    },
-  });
+  for (let intento = 0; intento < MAX_REINTENTOS; intento++) {
+    // BLOQUE 1: leer el estado actual.
+    const game = await cargarPartidaParaResponder(gameId);
 
-  if (!game) return { ok: false, error: "GAME_NOT_FOUND" }; // → 404
-  if (!game.players.some((player) => player.userId === userId))
-    return { ok: false, error: "NOT_PARTICIPANT" }; // → 403
-  if (game.status === "FINISHED") return { ok: false, error: "GAME_FINISHED" }; // → 409
+    if (!game) return { ok: false, error: "GAME_NOT_FOUND" }; // → 404
+    if (!game.players.some((player) => player.userId === userId))
+      return { ok: false, error: "NOT_PARTICIPANT" }; // → 403
+    if (game.status === "WAITING") return { ok: false, error: "GAME_NOT_ACTIVE" }; // → 409
 
-  //  BLOQUE 2: la pregunta debe ser de ESTA partida y estar en SU TURNO
-  const question = game.questions.find((q) => q.id === gameQuestionId);
-  if (!question) return { ok: false, error: "QUESTION_NOT_IN_GAME" }; // → 404
+    // BLOQUE 2: la pregunta debe ser de ESTA partida.
+    const question = game.questions.find((q) => q.id === gameQuestionId);
+    if (!question) return { ok: false, error: "QUESTION_NOT_IN_GAME" }; // → 404
 
-  // El turno es la PRIMERA pregunta sin responder (las van en position 0..4).
-  const turno = game.questions.find((q) => q.answers.length === 0);
-  if (!turno) return { ok: false, error: "GAME_FINISHED" }; // defensa extra
-  if (turno.id !== gameQuestionId) return { ok: false, error: "WRONG_TURN" }; // → 409
+    /* Reintentar una respuesta ya aceptada es un duplicado, incluso si con
+       ella terminó la partida. Se comprueba ANTES que el estado FINISHED. */
+    if (question.answers.some((answer) => answer.userId === userId))
+      return { ok: false, error: "ALREADY_ANSWERED" }; // → 409
 
-  // BLOQUE 3: la opción debe existir y pertenecer a ESA pregunta
-  const choice = await prisma.gameChoice.findUnique({
-    where: { id: choiceId },
-  });
-  if (!choice || choice.gameQuestionId !== gameQuestionId)
-    return { ok: false, error: "CHOICE_NOT_IN_QUESTION" }; // → 400
+    if (game.status === "FINISHED") return { ok: false, error: "GAME_FINISHED" }; // → 409
 
-  // BLOQUE 4: calcular el punto (¡en el servidor!) y guardar todo
+    /* BLOQUE 3: debe ser la pregunta en juego. En multijugador, además,
+       debe ser el turno del usuario: primero turnOrder 1 y después 2. */
+    const preguntaEnJuego = game.questions.find(
+      (q) => q.position === game.currentPosition,
+    );
+    if (!preguntaEnJuego || preguntaEnJuego.id !== gameQuestionId)
+      return { ok: false, error: "WRONG_TURN" }; // → 409
 
-  // La solución copiada es la POSICIÓN de la opción correcta (0..3).
-  // El backend decide: el cliente no envía ni modifica esto.
-  const isCorrect = choice.position === question.solution;
-
-  // Puntos que ya llevas: suma de respuestas correctas anteriores.
-  const previousScore = game.questions.reduce(
-    (total, q) => total + q.answers.filter((a) => a.isCorrect).length,
-    0,
-  );
-  const score = previousScore + (isCorrect ? 1 : 0);
-
-  // ¿Esta era la quinta respuesta?
-  const answered = game.questions.filter((q) => q.answers.length > 0).length;
-  const finished = answered + 1 === PREGUNTAS_POR_PARTIDA;
-
-  try {
-    // Transacción: se guarda la respuesta y, si era la quinta, se cierra
-    // la partida. O se hace todo, o no se hace nada.
-    await prisma.$transaction(async (tx) => {
-      await tx.answer.create({
-        data: { gameQuestionId, choiceId, isCorrect },
-      });
-      if (finished) {
-        await tx.game.update({
-          where: { id: gameId },
-          data: { status: "FINISHED", finishedAt: new Date() },
-        });
-      }
-    });
-  } catch (error) {
-    // Última línea de defensa: tu tabla Answer tiene @@unique([gameQuestionId]),
-    // así que un duplicado revienta con P2002 → 409 y NUNCA suma dos veces.
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      return { ok: false, error: "ALREADY_ANSWERED" };
+    if (game.mode === "MULTIPLAYER") {
+      const jugadorDelTurno = game.players.find(
+        (player) => player.turnOrder === game.currentTurnOrder,
+      );
+      if (!jugadorDelTurno || jugadorDelTurno.userId !== userId)
+        return { ok: false, error: "WRONG_TURN" }; // → 409
     }
-    // Otros errores de BBDD → suben solos al middleware global (Express 5).
-    throw error;
+
+    // BLOQUE 4: la opción debe existir y pertenecer a ESA pregunta.
+    const choice = question.choices.find((c) => c.id === choiceId);
+    if (!choice) return { ok: false, error: "CHOICE_NOT_IN_QUESTION" }; // → 400
+
+    // BLOQUE 5: la solución y el punto se calculan SOLO en el servidor.
+    const isCorrect = choice.position === question.solution;
+    const esMultijugador = game.mode === "MULTIPLAYER";
+    const rondaCompleta =
+      esMultijugador && game.currentTurnOrder === RESPUESTAS_POR_PREGUNTA_MULTIJUGADOR;
+
+    /* Siguiente estado. En multijugador la misma pregunta pasa del jugador 1
+       al 2; solo cuando responde el 2 se avanza a la siguiente pregunta. */
+    let siguientePosicion = game.currentPosition;
+    let siguienteTurno = 1;
+    if (esMultijugador && !rondaCompleta) {
+      siguienteTurno = 2;
+    } else {
+      siguientePosicion = game.currentPosition + 1;
+    }
+    const finished = siguientePosicion >= PREGUNTAS_POR_PARTIDA;
+
+    // Puntuaciones con el punto recién calculado. Se guardan en GamePlayer.
+    const puntuaciones: PuntuacionJugador[] = game.players.map((player) => ({
+      userId: player.userId,
+      score: player.score + (player.userId === userId && isCorrect ? 1 : 0),
+    }));
+
+    const ganador = finished ? calcularGanador(puntuaciones) : null;
+    const isDraw = finished && ganador === null;
+
+    /* Resultados de la ronda: solo se devuelven cuando ya respondieron los
+       dos. Mientras falte el jugador 2, no se filtra si el jugador 1 acertó. */
+    const results: ResultadoRonda[] | null =
+      esMultijugador && rondaCompleta
+        ? game.players.map((player) => {
+            const respuesta =
+              player.userId === userId
+                ? { userId, isCorrect }
+                : question.answers.find(
+                    (answer) => answer.userId === player.userId,
+                  );
+            return {
+              userId: player.userId,
+              isCorrect: respuesta?.isCorrect ?? false,
+            };
+          })
+        : null;
+
+    const siguientePregunta = game.questions.find(
+      (q) => q.position === siguientePosicion,
+    );
+    const siguienteJugador = game.players.find(
+      (player) => player.turnOrder === siguienteTurno,
+    );
+    const nextTurn: SiguienteTurno | null =
+      !finished && siguientePregunta && siguienteJugador
+        ? {
+            userId: siguienteJugador.userId,
+            gameQuestionId: siguientePregunta.id,
+          }
+        : null;
+
+    try {
+      /* Transacción: respuesta + avance de turno + puntuación + cierre.
+         El WHERE actúa como control de versión: si otra petición cambió la
+         partida, count será 0 y este intento se descarta y se repite. */
+      await prisma.$transaction(
+        async (tx) => {
+          const actualizado = await tx.game.updateMany({
+            where: {
+              id: gameId,
+              status: "ACTIVE",
+              turnVersion: game.turnVersion,
+              currentPosition: game.currentPosition,
+              currentTurnOrder: game.currentTurnOrder,
+            },
+            data: {
+              turnVersion: { increment: 1 },
+              currentPosition: siguientePosicion,
+              currentTurnOrder: siguienteTurno,
+              ...(finished
+                ? {
+                    status: "FINISHED",
+                    finishedAt: new Date(),
+                    winnerUserId: ganador,
+                  }
+                : {}),
+            },
+          });
+
+          if (actualizado.count !== 1) throw new Error("VERSION_CONFLICT");
+
+          await tx.answer.create({
+            data: { gameQuestionId, choiceId, userId, isCorrect },
+          });
+
+          if (isCorrect) {
+            await tx.gamePlayer.update({
+              where: { gameId_userId: { gameId, userId } },
+              data: { score: { increment: 1 } },
+            });
+          }
+        },
+        { isolationLevel: "Serializable" },
+      );
+    } catch (error) {
+      /* P2002: la restricción única [gameQuestionId, userId] ha rechazado un
+         duplicado que se coló entre la lectura y la escritura. */
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        return { ok: false, error: "ALREADY_ANSWERED" };
+      }
+
+      // Versión cambiada o conflicto Serializable: releer y reintentar.
+      if (
+        (error instanceof Error && error.message === "VERSION_CONFLICT") ||
+        (error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2034")
+      ) {
+        if (intento === MAX_REINTENTOS - 1) {
+          return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
+        }
+        continue;
+      }
+
+      // Otros errores de BBDD → suben solos al middleware global (Express 5).
+      throw error;
+    }
+
+    if (!esMultijugador) {
+      return {
+        ok: true,
+        mode: "INDIVIDUAL",
+        gameQuestionId,
+        isCorrect,
+        score:
+          puntuaciones.find((puntuacion) => puntuacion.userId === userId)
+            ?.score ?? 0,
+        finished,
+      };
+    }
+
+    return {
+      ok: true,
+      mode: "MULTIPLAYER",
+      gameQuestionId,
+      roundComplete: rondaCompleta,
+      finished,
+      nextTurn,
+      // Mientras la ronda no está completa estos campos son null.
+      results,
+      players: rondaCompleta ? puntuaciones : null,
+      winnerUserId: ganador,
+      isDraw,
+    };
   }
 
-  return { ok: true, isCorrect, score, finished };
+  return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
 }

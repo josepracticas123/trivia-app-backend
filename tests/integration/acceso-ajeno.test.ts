@@ -70,7 +70,11 @@ async function escenarioDosUsuarios() {
   idsUsuarios.push(usuarioA.id, usuarioB.id);
 
   const partidaDeA = await prisma.game.create({
-    data: { players: { create: { userId: usuarioA.id } } },
+    data: {
+      players: {
+        create: { userId: usuarioA.id, isCreator: true, turnOrder: 1 },
+      },
+    },
   });
   idsPartidas.push(partidaDeA.id);
   return { usuarioA, usuarioB, partidaDeA };
