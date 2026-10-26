@@ -16,15 +16,15 @@
 
 ## Comprueba tu entrega
 
-- [ ] Solo responde el jugador del turno; una respuesta fuera de turno o a otra pregunta da un conflicto documentado.
-- [ ] Una respuesta por jugador y pregunta se garantiza también mediante restricción única en DB.
-- [ ] Dos peticiones simultáneas no duplican puntos, saltan turnos ni dejan una partida a medio actualizar.
-- [ ] Reintentar una respuesta ya aceptada se rechaza como duplicada sin modificar estado.
-- [ ] Ninguna respuesta o puntuación intermedia revela el acierto del primer jugador antes de responder el segundo.
-- [ ] Diez respuestas terminan la partida con puntuaciones y ganador o empate correctos.
-- [ ] Hay pruebas automatizadas de duplicados, concurrencia, permisos y finalización; modo individual sigue funcionando.
-- [ ] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
-- [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
+- [x] Solo responde el jugador del turno; una respuesta fuera de turno o a otra pregunta da un conflicto documentado.
+- [x] Una respuesta por jugador y pregunta se garantiza también mediante restricción única en DB.
+- [x] Dos peticiones simultáneas no duplican puntos, saltan turnos ni dejan una partida a medio actualizar.
+- [x] Reintentar una respuesta ya aceptada se rechaza como duplicada sin modificar estado.
+- [x] Ninguna respuesta o puntuación intermedia revela el acierto del primer jugador antes de responder el segundo.
+- [x] Diez respuestas terminan la partida con puntuaciones y ganador o empate correctos.
+- [x] Hay pruebas automatizadas de duplicados, concurrencia, permisos y finalización; modo individual sigue funcionando.
+- [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+- [x] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
 
@@ -40,13 +40,13 @@ Este reto necesita acompañamiento del tutor. Una transacción aislada no garant
 
 ## Registro de entrega y revisión
 
-Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
+Estado: **entregado para revisión del tutor** (sin merge). Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
 
-- PR y commit revisado: pendiente.
-- Prueba correcta (petición/acción y resultado): pendiente.
-- Prueba inválida o fallo (petición/acción y resultado): pendiente.
-- Comandos y resultados: pendiente.
-- Dudas o correcciones: pendiente.
+- PR y commit revisado: [PR #18](https://github.com/josepracticas123/trivia-app-backend/pull/18), rama `reto/17-turnos-concurrencia`; pendiente de revisión del tutor.
+- Prueba correcta (petición/acción y resultado): turno válido → 200 con `roundComplete`, `nextTurn` y, tras el segundo jugador, `results`/`players`; `GET /api/games/:id` → 200 con `currentTurn` y sin soluciones.
+- Prueba inválida o fallo (petición/acción y resultado): responder fuera de turno → 409 `WRONG_TURN`; repetir una respuesta → 409 `ALREADY_ANSWERED`; dos peticiones simultáneas del mismo jugador → una aceptada y otra duplicada, sin doble puntuación.
+- Comandos y resultados: `npm run typecheck` ✅; `npm run build` ✅; `npm test` → 93 tests / 11 archivos ✅; `npm run test:integration` → 19 tests / 4 archivos ✅.
+- Dudas o correcciones: validar con el tutor el control de versión optimista (`turnVersion`) frente a un bloqueo pesimista.
 - Revisión y aprobación del tutor: pendiente.
 - Merge en `develop`: pendiente.
 
