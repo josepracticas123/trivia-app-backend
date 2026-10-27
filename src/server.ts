@@ -1,4 +1,6 @@
-import { app } from "./app.js";
+﻿import { app } from "./app.js";
+import { createServer } from "node:http";
+import { initSockets } from "./sockets/index.js";
 
 // El secreto es obligatorio para firmar los tokens JWT.
 // Si falta, detenemos el arranque para evitar usar una configuración insegura.
@@ -28,6 +30,13 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error("PORT debe ser un número entero entre 1 y 65535");
 }
 
-app.listen(port, "0.0.0.0", () => {
+export const server = createServer(app);
+
+// Inicializamos Socket.IO sobre el mismo servidor HTTP (efectos secundarios).
+// Esto registra el middleware de auth, los eventos y deja io listo para usarlo
+// desde controladores.
+initSockets(server);
+
+server.listen(port, "0.0.0.0", () => {
   console.log(`TriviaApp Backend disponible en http://localhost:${port}`);
 });

@@ -3,6 +3,9 @@ import { submitAnswer } from "../services/game.services.js";
 import { answerSchema } from "../schemas/answer.schema.js";
 import { idParamSchema } from "../schemas/question-id.schema.js";
 import { responderError } from "../errors/responderError.js";
+import { responderMiddlewareError } from "../errors/responderMiddlewareError.js";
+import { io } from "../sockets/index.js";
+import { prisma } from "../lib/prisma.js";
 
 // Responde la pregunta de partida que está en el turno.
 export async function answerController(req: Request, res: Response) {
@@ -48,7 +51,24 @@ export async function answerController(req: Request, res: Response) {
 
     return responderError(res, traduccion[resultado.error]);
   }
+  // Tras guardar y confirmar la respuesta, leemos estado fresco (id, status, turnVersion)
+  const gameState = await prisma.game?.findUnique({
+    where: { id: gameId },
+    select: { id: true, status: true, turnVersion: true },
+  });
 
+  if (gameState) {
+    // Emitimos aviso a la sala autorizada. Solo datos públicos.
+   if (!io) {
+     console.error("Socket.IO no inicializado: no se puede emitir game:updated");
+     return responderMiddlewareError(res, "INTERNAL_SERVER_ERROR");
+   }
+   io.to(`game:${gameState.id}`).emit("game:updated", {
+      id: gameState.id,
+      status: gameState.status,
+      turnVersion: gameState.turnVersion,
+    });
+  }
   // Modo individual: se conserva el contrato del reto 13.
   if (resultado.mode !== "MULTIPLAYER") {
     return res.status(200).json({

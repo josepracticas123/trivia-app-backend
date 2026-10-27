@@ -68,7 +68,7 @@ export async function joinGame(
   userId: number,
   code: string,
 ): Promise<
-  | { ok: true; game: { id: number; status: string } }
+  | { ok: true; game: { id: number; status: string; turnVersion: number } }
   | { ok: false; error: JoinGameError }
 > {
   for (let intento = 0; intento < MAX_REINTENTOS; intento++) {
@@ -156,7 +156,7 @@ export async function startGame(
   gameId: number,
   userId: number,
 ): Promise<
-  | { ok: true; game: { id: number; status: string } }
+  | { ok: true; game: { id: number; status: string; turnVersion: number } }
   | { ok: false; error: StartGameError }
 > {
   for (let intento = 0; intento < MAX_REINTENTOS; intento++) {
@@ -216,7 +216,17 @@ export async function startGame(
         },
         { isolationLevel: "Serializable" },
       );
-      return { ok: true, game: { ...game, status: "ACTIVE" } };
+      // Leer el estado confirmado tras el commit de la transacción
+      const confirmed = await prisma.game.findUnique({
+        where: { id: gameId },
+        select: { id: true, status: true, turnVersion: true },
+      });
+
+      if (!confirmed) {
+        return { ok: false, error: "GAME_NOT_FOUND" };
+      }
+
+      return { ok: true, game: confirmed };
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

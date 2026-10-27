@@ -758,13 +758,58 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
 
 ## 18 · Añade avisos en tiempo real
 
-- Lo que he construido: pendiente.
-- Conceptos y explicación propia: pendiente.
-- Pruebas y resultados: pendiente.
-- Error y solución: pendiente.
-- Dudas: pendiente.
-- PR y correcciones: pendiente.
+- **Lo que he construido:**
+  - He conectado **Socket.IO** al mismo servidor HTTP que Express (`src/server.ts` importa `./sockets/index.js`), con la misma configuración de CORS que la API REST.
+  - He creado `src/sockets/index.ts` con un middleware de autenticación en el *handshake* que acepta el token por `auth.token` o `query.token`, lo verifica con `JWT_SECRET`, rechaza token ausente, inválido o caducado y guarda `socket.data.userId`.
+  - He implementado el evento `join:game`: comprueba en base de datos que el usuario sea `GamePlayer` de esa partida (**conocer el ID no basta**), solo entonces lo une a la sala `game:${gameId}` y responde con `joined:game`. Si no participa, emite `error:game` y no lo une a la sala.
+  - He emitido `game:updated` desde los controladores tras confirmar la operación HTTP: en `game.join.ts` (al unirse), en `game.start.ts` (al iniciar) y en `game.answer.ts` (al responder, incluyendo cuando la partida pasa a `FINISHED`). El payload solo contiene datos públicos: `id`, `status` y `turnVersion`.
+  - He creado `docs/eventos.md` documentando la conexión, autenticación, eventos cliente-servidor, eventos servidor-cliente, errores y dejando claro que el cliente debe volver a consultar `GET /api/games/:id` tras recibir el aviso.
+  - Las emisiones solo se realizan tras el *commit* de la operación HTTP. Si la operación falla, **nunca** se emite `game:updated`. 
 
+- **Conceptos y explicación propia:**
+  - **WebSocket vs HTTP:** Las acciones siguen pasando por la API REST. Socket.IO solo se utiliza para avisar en tiempo real de que el estado ha cambiado.
+  - **Salas (`rooms`):** He utilizado `io.to(\`game:${gameId}\`)` para enviar el evento únicamente a los sockets que se hayan unido correctamente a esa sala, evitando enviar información a usuarios ajenos.
+  - **Autenticación en handshake:** Se valida el JWT al conectar, no en cada evento. Si el token caduca durante la conexión, el socket ya autenticado se mantiene conectado (para reforzarlo se debería renovar sesión reconectando).
+  - **Emitir tras confirmar:** Siempre emito después de que el servicio haya confirmado la operación en base de datos. Esto evita avisar de cambios que nunca se han guardado.
+  - **Fuente de verdad:** El socket **no** es la fuente de verdad. Únicamente avisa del cambio y el cliente debe volver a consultar el estado completo con `GET /api/games/:id`. Nunca se envían soluciones, opciones correctas ni respuestas internas.
+  - **Autorización por pertenencia:** La autorización para recibir eventos se hace comprobando `GamePlayer`, no con el hecho de conocer el `gameId`. 
+
+- **Pruebas y resultados:**
+  - `npm run typecheck` → correcto.
+  - `npm run build` → correcto.
+  - **Prueba con dos navegadores:** He conectado dos usuarios distintos (Chrome normal y modo incógnito) desde `http://localhost:3000/health` con sus respectivos tokens JWT.
+  - **Conexión y unión:** Ambos se han conectado correctamente y al hacer `join:game` han recibido `joined:game` sin errores. Un usuario ajeno no ha podido unirse.
+  - **Inicio de partida:** Al lanzar `POST /api/games/14/start` con el token del creador, **ambos clientes han recibido `game:updated` al mismo tiempo sin recargar las pestañas** (`[USER1] GAME_UPDATED` y `[USER2] GAME_UPDATED` con `{ id: 14, status: 'WAITING', turnVersion: 0 }`).
+  - **Estado real verificado:** Tras el `start`, `GET /api/games/14` confirmaba que la partida pasaba correctamente a `ACTIVE`, con los dos jugadores, 5 preguntas congeladas y turno asignado.
+  - **Sin emisión en fallo:** Si la operación HTTP falla, no se emite ningún `game:updated`.
+
+- **Error y solución:**
+  - **Sockets no se inicializaban:** Olvidé añadir `import "./sockets/index.js";` en `src/server.ts`. Lo solucioné importándolo justo después de crear el servidor HTTP para que se ejecuten los `io.use()` e `io.on()`.
+  - **Typos en el evento:** Tuve `game:updatet` en `game.join.ts` y `game${gameState.id}` (sin `:`) en `game.answer.ts`. Corregidos ambos para usar `game:updated` y la sala correcta `game:${gameState.id}`.
+  - **Normalización de `gameId`:** En `src/sockets/index.ts` normalicé `gameId` a `Number(gameId)` con validación (`Number.isInteger` y mayor a 0), usándolo en la consulta, en `socket.join` y en `joined:game`.
+  - **CORS con navegador:** Al abrir la consola desde `about:blank` el origen era `null`. Lo solucioné abriendo las pestañas desde `http://localhost:3000/health` y usando **Snippets** para saltarme el aviso de seguridad de Chrome.
+  - **Tokens incorrectos:** Al principio conecté los sockets con tokens equivocados. Lo solucioné comprobando con `GET /api/me` el `userId` de cada token y comparándolo con `players` de la partida con `GET /api/games/{id}`, usando siempre el token del usuario que participa en esa partida.
+
+- **Dudas:**
+  - **¿Qué pasa si el token caduca durante la conexión?** Queda documentado: la validación solo ocurre en el handshake, por lo que el socket se mantiene conectado. Para renovar la sesión sería necesario desconectarse y volver a conectar con un token válido.
+
+- **Mejoras opcionales aplicadas (reto 18):**
+  - Tipado de Socket.IO en `src/sockets/socket.types.ts` (`AppServer`, `AppSocket`, `SocketData`, eventos cliente/servidor) y uso en `src/sockets/index.ts`.
+  - Pruebas de integración real en `tests/sockets/socket.integration.test.ts`: conexión sin token rechazada, token válido aceptado, usuario ajeno no se une, dos participantes reciben `game:updated`, expiración del token.
+- **Correcciones del tutor (reto 18):**
+  - `npm run typecheck` y `npm test` (98/98) en verde.
+  - Caducidad durante la conexión: el servidor valida `exp` en el handshake y programa `setTimeout(() => socket.disconnect(true), remainingMs)`; libera el temporizador con `clearTimeout` en `disconnect`.
+  - Validación JWT alineada con HTTP: `jwt.verify` con `{ algorithms: ["HS256"] }`, `exp` obligatorio y finito, `sub` numérico seguro (1..2147483647), comprobación de usuario en `prisma.user.findUnique` y pertenencia en `join:game` con `GamePlayer`.
+  - Estado confirmado en start: `startGame` lee `prisma.game.findUnique` tras el commit y devuelve ese estado; el controlador emite `game:updated` solo si la operación es OK.
+  - Documentación actualizada en `docs/eventos.md` (caducidad, reconexión con token válido y liberación del temporizador).
+
+
+- **PR y correcciones:**
+  - Rama `reto/18-socket-io` con todos los cambios aplicados.
+  - `npm run typecheck` y `npm run build` en verde.
+  - Prueba con dos clientes exitosa: `game:updated` recibido por ambos sin recargar al iniciar la partida.
+  - Pendiente de actualizar `APRENDIZAJE.md` (realizado), hacer commit/push y abrir PR hacia `develop` sin hacer merge.
+  - 
 ## 19 · Recupera una partida al reconectar
 
 - Lo que he construido: pendiente.
