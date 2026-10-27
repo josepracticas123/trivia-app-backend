@@ -1,10 +1,4 @@
-// src/sockets/socket.types.ts
-import type { Socket } from "socket.io";
-
-export interface SocketData {
-  userId: number;
-  expirationTimeout?: NodeJS.Timeout;
-}
+import type { Server, Socket } from "socket.io";
 
 export interface ClientToServerEvents {
   "join:game": (gameId: number | string) => void;
@@ -12,9 +6,27 @@ export interface ClientToServerEvents {
 
 export interface ServerToClientEvents {
   "joined:game": (payload: { gameId: number }) => void;
-  "error:game": (payload: { message: string }) => void;
   "game:updated": (payload: { id: number; status: string; turnVersion: number }) => void;
+  "error:game": (payload: { message: string }) => void;
 }
 
-export type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
-export type AppServer = import("socket.io").Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
+export interface InterServerEvents {}
+
+export interface SocketData {
+  userId: number;
+  expirationTimeout?: ReturnType<typeof setTimeout>;
+}
+
+export type AppServer = Server<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>;
+
+export type AppSocket = Socket<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>;
