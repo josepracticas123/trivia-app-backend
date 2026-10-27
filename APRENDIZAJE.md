@@ -793,6 +793,17 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
 - **Dudas:**
   - **¿Qué pasa si el token caduca durante la conexión?** Queda documentado: la validación solo ocurre en el handshake, por lo que el socket se mantiene conectado. Para renovar la sesión sería necesario desconectarse y volver a conectar con un token válido.
 
+- **Mejoras opcionales aplicadas (reto 18):**
+  - Tipado de Socket.IO en `src/sockets/socket.types.ts` (`AppServer`, `AppSocket`, `SocketData`, eventos cliente/servidor) y uso en `src/sockets/index.ts`.
+  - Pruebas de integración real en `tests/sockets/socket.integration.test.ts`: conexión sin token rechazada, token válido aceptado, usuario ajeno no se une, dos participantes reciben `game:updated`, expiración del token.
+- **Correcciones del tutor (reto 18):**
+  - `npm run typecheck` y `npm test` (98/98) en verde.
+  - Caducidad durante la conexión: el servidor valida `exp` en el handshake y programa `setTimeout(() => socket.disconnect(true), remainingMs)`; libera el temporizador con `clearTimeout` en `disconnect`.
+  - Validación JWT alineada con HTTP: `jwt.verify` con `{ algorithms: ["HS256"] }`, `exp` obligatorio y finito, `sub` numérico seguro (1..2147483647), comprobación de usuario en `prisma.user.findUnique` y pertenencia en `join:game` con `GamePlayer`.
+  - Estado confirmado en start: `startGame` lee `prisma.game.findUnique` tras el commit y devuelve ese estado; el controlador emite `game:updated` solo si la operación es OK.
+  - Documentación actualizada en `docs/eventos.md` (caducidad, reconexión con token válido y liberación del temporizador).
+
+
 - **PR y correcciones:**
   - Rama `reto/18-socket-io` con todos los cambios aplicados.
   - `npm run typecheck` y `npm run build` en verde.

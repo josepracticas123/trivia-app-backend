@@ -12,7 +12,7 @@ Las acciones siguen pasando por la API HTTP. El cliente, tras recibir `game:upda
 - **Errores al conectar:**
   - `Token de autenticación requerido` -> conexión rechazada
   - `Token inválido o caducado` -> conexión rechazada
-- **Caducidad durante la conexión:** Si el token caduca **después** del handshake, la conexión ya queda establecida con el token validado en ese momento. Para acciones futuras se sigue confiando en la autorización por pertenencia a partida (`GamePlayer`). Renovar sesión es responsabilidad del cliente (volver a conectar con un token válido).
+- **Caducidad durante la conexión:** El servidor valida `exp` en el handshake y programa un temporizador que ejecuta `socket.disconnect(true)` al vencer el token; el cliente debe reconectar con un token válido. Si el socket se desconecta antes de que venza, se libera el temporizador con `clearTimeout`. Mientras tanto, la autorización de salas sigue basándose en `GamePlayer`.
 
 ## Cliente -> Servidor
 

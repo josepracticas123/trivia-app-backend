@@ -28,8 +28,8 @@ export async function startGameController(req: Request, res: Response) {
   }
   io.to(`game:${gameId}`).emit("game:updated", {
     id: gameId,
-    turnVersion: resultado.game.turnVersion,
-    status: resultado.game.status,
+    turnVersion: resultado.game.turnVersion,// ahora viene confirmado
+    status: resultado.game.status, // ahora ACTIVE
   });
 
   return res

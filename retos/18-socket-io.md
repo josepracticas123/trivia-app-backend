@@ -47,6 +47,7 @@ Estado: **Entregado (pendiente de revisión del tutor)**. Los checks son la auto
 - Prueba inválida o fallo (petición/acción y resultado): token ausente/inválido → conexión rechazada; usuario ajeno → `error:game` y no se une a la sala; operación HTTP fallida → no se emite `game:updated`.
 - Comandos y resultados: `npm run typecheck` ✅, `npm run build` ✅, `npm test` ✅ (93/93), `npm run dev` ✅.
 - Dudas o correcciones: caducidad de token durante la conexión documentada en `docs/eventos.md` (validación solo en handshake; renovar reconectando). Se corrigió dependencia circular de arranque (`initSockets(server)` tras `createServer`) y se añadió respuesta 500 si `io` no está inicializado.
+- **Mejoras opcionales aplicadas:** tipado Socket.IO (`socket.types.ts`) y pruebas reales (`tests/sockets/socket.integration.test.ts`: sin token, token válido, usuario ajeno, dos participantes, expiración). `npm run typecheck` y `npm test` (98/98) en verde.
 - Revisión y aprobación del tutor: pendiente.
 - Merge en `develop`: pendiente.
 

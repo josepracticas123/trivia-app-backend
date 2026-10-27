@@ -216,8 +216,17 @@ export async function startGame(
         },
         { isolationLevel: "Serializable" },
       );
-      return { ok: true, game: { id: game.id, status: game.status, turnVersion: game.turnVersion } };
+      // Leer el estado confirmado tras el commit de la transacción
+      const confirmed = await prisma.game.findUnique({
+        where: { id: gameId },
+        select: { id: true, status: true, turnVersion: true },
+      });
 
+      if (!confirmed) {
+        return { ok: false, error: "GAME_NOT_FOUND" };
+      }
+
+      return { ok: true, game: confirmed };
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
