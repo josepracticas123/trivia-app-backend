@@ -29,7 +29,9 @@ vi.mock("../../src/services/game.services.js", () => ({
   getMyGames: vi.fn(),
 }));
 
-// Simulamos Prisma (el router lo importa indirectamente).
+vi.mock("../../src/sockets/index.js", () => ({
+  io: { to: () => ({ emit: vi.fn() }) },
+}));
 vi.mock("../../src/lib/prisma.js", () => ({
   prisma: { user: { findUnique: vi.fn() } },
 }));

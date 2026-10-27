@@ -16,14 +16,14 @@
 
 ## Comprueba tu entrega
 
-- [ ] Token ausente o inválido no permite conexión autenticada; la expiración obliga a renovar sesión.
-- [ ] Un usuario ajeno no puede suscribirse a la sala y no recibe eventos de esa partida.
-- [ ] Entrar, iniciar, responder y finalizar avisa a los participantes después del commit.
-- [ ] Una operación fallida no emite un aviso de éxito.
-- [ ] Dos clientes reciben cambios sin recargar; no reciben soluciones ni información sensible.
-- [ ] Swagger sigue probando las acciones HTTP; eventos tienen nombre, payload, autorización y errores en su documento propio.
-- [ ] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
-- [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
+- [x] Token ausente o inválido no permite conexión autenticada; la expiración obliga a renovar sesión.
+- [x] Un usuario ajeno no puede suscribirse a la sala y no recibe eventos de esa partida.
+- [x] Entrar, iniciar, responder y finalizar avisa a los participantes después del commit.
+- [x] Una operación fallida no emite un aviso de éxito.
+- [x] Dos clientes reciben cambios sin recargar; no reciben soluciones ni información sensible.
+- [x] Swagger sigue probando las acciones HTTP; eventos tienen nombre, payload, autorización y errores en su documento propio.
+- [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+- [x] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
 
@@ -40,13 +40,13 @@ La sala de Socket.IO es un canal de mensajes; la partida y sus participantes viv
 
 ## Registro de entrega y revisión
 
-Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
+Estado: **Entregado (pendiente de revisión del tutor)**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
 
-- PR y commit revisado: pendiente.
-- Prueba correcta (petición/acción y resultado): pendiente.
-- Prueba inválida o fallo (petición/acción y resultado): pendiente.
-- Comandos y resultados: pendiente.
-- Dudas o correcciones: pendiente.
+- PR y commit revisado: listo para revisión (rama `reto/18-socket-io`).
+- Prueba correcta (petición/acción y resultado): conexión con token válido + `join:game` → `joined:game`; `POST /api/games/:id/start` → ambos clientes reciben `game:updated` sin recargar; `POST /api/games/:id/answers` emite tras commit; `GET /api/games/:id` confirma estado real.
+- Prueba inválida o fallo (petición/acción y resultado): token ausente/inválido → conexión rechazada; usuario ajeno → `error:game` y no se une a la sala; operación HTTP fallida → no se emite `game:updated`.
+- Comandos y resultados: `npm run typecheck` ✅, `npm run build` ✅, `npm test` ✅ (93/93), `npm run dev` ✅.
+- Dudas o correcciones: caducidad de token durante la conexión documentada en `docs/eventos.md` (validación solo en handshake; renovar reconectando). Se corrigió dependencia circular de arranque (`initSockets(server)` tras `createServer`) y se añadió respuesta 500 si `io` no está inicializado.
 - Revisión y aprobación del tutor: pendiente.
 - Merge en `develop`: pendiente.
 

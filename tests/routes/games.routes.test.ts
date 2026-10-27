@@ -22,7 +22,9 @@ vi.mock("../../src/services/game.services.js", () => ({
   submitAnswer: vi.fn(),
 }));
 
-// Simulamos prisma: authMiddleware solo pide el usuario del token.
+vi.mock("../../src/sockets/index.js", () => ({
+  io: { to: () => ({ emit: vi.fn() }) },
+}));
 vi.mock("../../src/lib/prisma.js", () => ({
   prisma: {
     user: { findUnique: vi.fn() },

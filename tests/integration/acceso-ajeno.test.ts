@@ -11,10 +11,13 @@ import express from "express";
 import request from "supertest";
 import jwt from "jsonwebtoken";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { createServer } from "node:http";
+import { initSockets } from "../../src/sockets/index.js";
 import { gameRouter } from "../../src/routes/games.routes.js";
 import { meRouter } from "../../src/routes/me.routes.js";
 import { prisma } from "../../src/lib/prisma.js";
 import { asegurarBaseDePruebas } from "./helpers/db-guard.js";
+initSockets(createServer());
 
 /* Abortamos al cargar el fichero si la URL no es la de pruebas.
    Así ni siquiera se crea o se borra nada en una base ajena. */

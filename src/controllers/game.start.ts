@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { startGame } from "../services/game.services.js";
 import { responderError } from "../errors/responderError.js";
+import { responderMiddlewareError } from "../errors/responderMiddlewareError.js";
 import { idParamSchema } from "../schemas/question-id.schema.js";
 import { io } from "../sockets/index.js";
 
@@ -20,6 +21,10 @@ export async function startGameController(req: Request, res: Response) {
 
   if (!resultado.ok) {
     return responderError(res, resultado.error);
+  }
+  if (!io) {
+    console.error("Socket.IO no inicializado: no se puede emitir game:updated");
+    return responderMiddlewareError(res, "INTERNAL_SERVER_ERROR");
   }
   io.to(`game:${gameId}`).emit("game:updated", {
     id: gameId,
