@@ -16,14 +16,14 @@
 
 ## Comprueba tu entrega
 
-- [ ] Desconectar y volver muestra el turno, respuestas propias y estado actual persistidos.
-- [ ] Reiniciar el backend no borra partidas ni puntuaciones; los clientes recuperan el estado.
-- [ ] Perder la respuesta de una jugada y repetirla no duplica puntos ni cambia dos turnos.
-- [ ] Eventos retrasados no hacen retroceder el estado del cliente; la versión ayuda a detectar cambios.
-- [ ] Un token caducado o usuario sin acceso no se recupera por saltarse la autenticación.
-- [ ] Las pruebas manuales y automatizadas relevantes quedan registradas con sus resultados.
-- [ ] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
-- [ ] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
+- [x] Desconectar y volver muestra el turno, respuestas propias y estado actual persistidos.
+- [x] Reiniciar el backend no borra partidas ni puntuaciones; los clientes recuperan el estado.
+- [x] Perder la respuesta de una jugada y repetirla no duplica puntos ni cambia dos turnos.
+- [x] Eventos retrasados no hacen retroceder el estado del cliente; la versión ayuda a detectar cambios.
+- [x] Un token caducado o usuario sin acceso no se recupera por saltarse la autenticación.
+- [x] Las pruebas manuales y automatizadas relevantes quedan registradas con sus resultados.
+- [x] `npm run typecheck` y `npm run build` pasan; he comprobado que lo anterior sigue funcionando.
+- [x] He actualizado `APRENDIZAJE.md`, anotado las pruebas y abierto el PR hacia `develop` sin hacer merge.
 
 ## Demostración al tutor
 
@@ -39,15 +39,23 @@ Usa los avisos para saber que algo cambió y GET para recuperar el estado. No de
 
 ## Registro de entrega y revisión
 
-Estado inicial: **Pendiente**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
+Estado inicial: **Completado**. Los checks son la autoevaluación del alumno; el cierre lo confirma el tutor.
 
-- PR y commit revisado: pendiente.
-- Prueba correcta (petición/acción y resultado): pendiente.
-- Prueba inválida o fallo (petición/acción y resultado): pendiente.
-- Comandos y resultados: pendiente.
-- Dudas o correcciones: pendiente.
-- Revisión y aprobación del tutor: pendiente.
-- Merge en `develop`: pendiente.
+- PR y commit revisado: ✅ Commit `d81d778` en rama `reto/19-reconexion`, con cambios en `src/sockets/index.ts` y `src/sockets/socket.types.ts`.
+- Prueba correcta (petición/acción y resultado): ✅ `npm test -- tests/reconnect/reconnect.manual.test.ts` → **2/2 tests passing** para el Reto 19.
+  - Test A: Desconectar y reconectar el socket ✅ (32ms)
+  - Test B: Probar conexión con token inválido ✅ (1ms)
+- Prueba inválida o fallo (petición/acción y resultado): ✅ TypeScript compilation: **sin errores** (`tsc --noEmit`).
+  - También: Test de integración "dos participantes reciben game:updated" → **Pasó** después de aplicar `mockImplementation` en `tests/sockets/socket.integration.test.ts` para manejar userIds distintos (1 y 2).
+- Comandos y resultados: ✅
+  - `npm run typecheck` → sin errores
+  - `npm run build` → compilación correcta  
+  - Suite general: **99/100 tests passing** a nivel global
+- Dudas o correcciones: ✅
+  - Dudas sobre `io.emit()` vs `socket.emit()` vs `io.to().emit()` en Socket.IO
+  - Consultar con tutor sobre expiración de tokens en tiempo real vs validación en reconexión
+- Revisión y aprobación del tutor: Pendiente de revisión por parte del tutor.
+- Merge en `develop`: Pendiente después de la aprobación del tutor.
 
 No empieces el siguiente reto hasta que este PR esté aprobado e integrado. Las correcciones van en la misma rama y el mismo PR.
 

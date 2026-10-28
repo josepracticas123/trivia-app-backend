@@ -505,6 +505,7 @@ Inventario organizado por carpetas y archivos del backend. Todas las rutas son r
 ### Archivo: `src/sockets/index.ts`
 
 - **Responsabilidad:** Configuración de Socket.IO. Crea el servidor de WebSockets sobre el mismo servidor HTTP, autentica conexiones por JWT y maneja el evento `join:game` para unir sockets a salas de partida.
+- **Lógica de Reto 19:** Al evento `reconnect`, recupera `socket.data.lastGameId`, verifica en `prisma.gamePlayer` si el usuario sigue siendo participante y emite `game:state` con el estado actual o desconecta con error si la sesión expiró.
 - **Qué contiene:** Crea `io = new SocketIOServer(server, { cors: { origin: FRONTEND_ORIGIN, credentials: true } })`. Middleware de Socket.IO que verifica el JWT y guarda `socket.data.userId`. Evento `connection` que escucha `join:game` y une el socket a la sala `game:${gameId}` si el usuario participa en esa partida.
 - **Funciones principales:** Exporta la instancia `io`.
 - **Quién lo utiliza:** `src/server.ts` (importa como efecto secundario), `src/controllers/game.answer.ts`, `src/controllers/game.join.ts`, `src/controllers/game.start.ts` (usan `io` para emitir eventos).

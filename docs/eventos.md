@@ -36,6 +36,13 @@ Aviso de que el estado de la partida ha cambiado. Se emite **únicamente tras gu
 
 - **Destino:** Sala `game:${gameId}` (solo sockets que se hayan unido correctamente con `join:game`).
 - **Payload (mínimo y público):**
+
+### Reconexión (Reto 19)
+Al desconectar y reconectar, el servidor recupera el `lastGameId` almacenado en `socket.data` y verifica en la base de datos (`prisma.gamePlayer`) si el usuario sigue participando en esa partida. Si la validación pasa, emite `game:state` con el estado actual; si el token expiró o el usuario ya no es participante, desconecta y muestra error: *"Tu sesión ha expirado o ya no participas en esta partida"*.
+
+- **Cuándo se dispara:** Cuando el socket emite el evento `reconnect`.
+- **Propósito:** Evitar que el usuario quede en un estado inconsistente tras perder la conexión.
+- **Validación:** Se comprueba en BD que el `userId` siga siendo `gamePlayer` en la partida `lastGameId`.
 ```json
 {
   "id": 1,
