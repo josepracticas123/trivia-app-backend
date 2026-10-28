@@ -1,3 +1,8 @@
+// Router para las operaciones CRUD de preguntas.
+// Agrupa todas las rutas de preguntas bajo /api/questions.
+// Solo usuarios ADMIN autenticados pueden crear, modificar o eliminar preguntas.
+// Datos: Entran con datos de pregunta, salen con la pregunta creada/modificada/eliminada.
+
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { adminMiddleware } from "../middlewares/admin.middleware.js";

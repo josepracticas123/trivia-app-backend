@@ -21,8 +21,7 @@ Guía de estudio para un desarrollador junior que necesita comprender y explicar
 | Control de versión optimista | Técnica para evitar conflictos cuando dos peticiones modifican el mismo dato. | Campo `turnVersion` en el modelo `Game` de `prisma/schema.prisma` |
 | Transacción Serializable | Nivel de aislamiento de BD que garantiza consistencia ante concurrencia. | `prisma.$transaction(..., { isolationLevel: "Serializable" })` en `submitAnswer` |
 | Socket.IO | Librería para comunicación en tiempo real (WebSockets) entre cliente y servidor. | `src/sockets/index.ts` configura el servidor y emite `game:updated` |
-| lastGameId | Identificador guardado en `socket.data` para recuperar la partida al reconectar. | `src/sockets/index.ts` |
-| reconexión | Flujo donde el servidor valida la sesión del usuario tras volver a conectar. | `src/sockets/index.ts` |
+| reconexión | Flujo en el que el cliente vuelve a autenticar el socket, emite `join:game` y consulta el estado por HTTP. | `docs/eventos.md` |
 | CORS | Mecanismo que permite o restringe peticiones desde otros dominios. | Configurado en `src/app.ts` con `origin: process.env.FRONTEND_ORIGIN` |
 | Swagger / OpenAPI | Estándar para documentar APIs REST. Swagger UI es la interfaz web. | `src/docs/swagger.ts` genera el documento; `/docs` muestra la UI |
 

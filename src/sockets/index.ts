@@ -104,6 +104,8 @@ export function initSockets(server: HttpServer): AppServer {
           return;
         }
 
+        // Cada conexión tiene su propio socket. Por eso comprobamos la
+        // pertenencia cada vez que el cliente solicita entrar en una sala.
         const participacion = await prisma.gamePlayer.findFirst({
           where: { gameId: gid, userId },
         });
@@ -116,52 +118,11 @@ export function initSockets(server: HttpServer): AppServer {
         }
 
         await socket.join(`game:${gid}`);
-        const gameState = await prisma.game.findUnique({
-          where: { id: gid },
-          select: { id: true, status: true, turnVersion: true },
-        });
-
-        socket.emit("game:state", {
-          id: gameState?.id,
-          status: gameState?.status,
-          turnVersion: gameState?.turnVersion,
-        });
-
+        // Confirmamos la suscripción. El cliente obtiene el estado público
+        // persistido mediante GET /api/games/:id después de este evento.
         socket.emit("joined:game", { gameId: gid });
-        // Guardar gameId para recuperarlo al reconectar
-        socket.data.lastGameId = gid;
-
-        // Al reconectar, recuperar estado actual
-        socket.on("reconnect", async () => {
-          const lastGameId = socket.data.lastGameId;
-          // Si el token caducó durante la aprtida, el usurio no tendrá acceso.
-          //Consulta en la BBDD si el userId sigue siendo jugador en esta partida
-          const userId = socket.data.userId;
-          const participation = await prisma.gamePlayer.findFirst({
-            where: { gameId: lastGameId, userId },
-          });
-          if (!participation) {
-            socket.disconnect();
-            socket.emit("error:game", {
-              message:
-                " Tu sesión ha expirado o ya no participas en esta partida",
-            });
-            return;
-          }
-
-          if (lastGameId) {
-            const gameState = await prisma.game.findUnique({
-              where: { id: lastGameId },
-              select: { id: true, status: true, turnVersion: true },
-            });
-            socket.emit("game:state", {
-              id: gameState?.id,
-              status: gameState?.status,
-              turnVersion: gameState?.turnVersion,
-            });
-          }
-        });
-      } catch {
+      } catch (error) {
+        console.error("Error in join:game:", error);
         socket.emit("error:game", { message: "No se pudo unir a la sala" });
       }
     });

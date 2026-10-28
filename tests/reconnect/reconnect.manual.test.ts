@@ -1,70 +1,68 @@
-// tests/reconnect/reconnect.manual.test.ts
-// ---------------------------------------------------------
-// Test del Reto 19: Recupera una partida al reconectar
-// ---------------------------------------------------------
-// Para correrlo:   npm test    (o vitest run tests/reconnect/reconnect.manual.test.ts)
-// Asegúrate de tener el servidor corriendo: npm run dev
-// ---------------------------------------------------------
+// Demostración manual del flujo real de reconexión.
+//
+// Requiere un servidor en marcha, una partida existente y un JWT del jugador.
+// Ejemplo en PowerShell:
+// $env:RECONNECT_TOKEN="<JWT>"
+// $env:RECONNECT_GAME_ID="7"
+// npm test -- tests/reconnect/reconnect.manual.test.ts
 
-import { describe, it, beforeEach, afterEach, expect } from 'vitest'; // Importamos las funciones de test de Vitest
-import { io } from 'socket.io-client'; // Importamos la librería de Socket.IO para simular un cliente
+import { describe, expect, it } from "vitest";
+import { io, type Socket } from "socket.io-client";
 
-// --- CONFIGURACIÓN ---
-// La URL de tu servidor (el puerto que uses en server.ts)
-const BASE_URL = 'http://localhost:3000';
+// El id de la partida se conserva en el cliente, no en socket.data del servidor.
+const gameId = Number(process.env.RECONNECT_GAME_ID);
+const token = process.env.RECONNECT_TOKEN;
+const baseUrl = process.env.RECONNECT_BASE_URL ?? "http://localhost:3000";
+const canRunDemo = Boolean(token) && Number.isInteger(gameId) && gameId > 0;
 
-// Comentario plano: Si tienes un token de autenticación (JWT), ponlo aquí.
-// Si no, lo dejamos vacío y el socket se conectará sin token (para probar la reconexión básica).
-const AUTH_TOKEN = 'tu_token_aquí_aqui'; 
+// Espera un solo evento del socket para no dejar listeners acumulados.
+function once<T>(socket: Socket, event: string): Promise<T> {
+  return new Promise((resolve) => socket.once(event, resolve));
+}
 
-// Variables para controlar los sockets y el gameId
-let socket1: any; // Será nuestro cliente 1 (jugador)
-let gameId: number = 1; // ID de la partida (lo ponemos 1 de ejemplo; si creas una partida real, cambia este número)
+describe.skipIf(!canRunDemo)("Demostración manual: reconexión", () => {
+  it("vuelve a entrar en la sala y recupera el estado por HTTP", async () => {
+    const socket = io(baseUrl, {
+      transports: ["websocket"],
+      autoConnect: false,
+      auth: { token },
+    });
 
-// ---Antes de cada test: preparamos el socket---
-// Este bloque se ejecuta antes de cada test de abajo.
-beforeEach(() => {
-  // Conectamos al socket1 en el servidor.
-  // Si tienes token, descomenta la línea de 'auth' de abajo.
-  // Si no, la conexión será sin token (válido para probar que la reconexión funciona aunque no haya auth compleja).
-  socket1 = io(BASE_URL, {
-    transports: ['websocket'],
-    auth: { token: AUTH_TOKEN } // <-- Descomenta esta línea si quieres probar con token
-  });
-});
+    // Esta función se usa en la conexión inicial y después de reconectar.
+    async function subscribeAndLoadGame() {
+      const joined = once<{ gameId: number }>(socket, "joined:game");
+      socket.emit("join:game", gameId);
 
-// --- Tests del Reto 19 ---
+      // El servidor ya verificó GamePlayer cuando recibimos joined:game.
+      const payload = await joined;
+      expect(payload.gameId).toBe(gameId);
 
-describe('Reto 19: Recupera una partida al reconectar', () => {
-  // Test A: Lo básico, que al desconectar y reconectar, el socket sigue vivo.
-  it('A. Desconectar y reconectar el socket', () => {
-    // Comentario plano: Aquí el socket1 ya se conectó en beforeEach.
-    
-    // Paso 1: Desconectamos el socket1.
-    socket1.disconnect();
-    
-    // Paso 2: Esperamos un momento (100ms) para que el navegador/Borre la conexión.
-    // En Vitest podemos usar setTimeout o await, pero para mantenerlo simple usamos setTimeout.
-    setTimeout(() => {
-      // Paso 3: Volvemos a conectar el socket1.
-      socket1.connect();
-    }, 100);
-    
-    // Paso 4: Esperamos un poco más para que Socket.IO procese la reconexión.
-    setTimeout(() => {
-      // Comprobación plana: Comprobamos que el socket1 existe y tiene una propiedad 'connected'.
-      // Si está conectado, el test pasa esta línea.
-      expect(socket1.connected).toBe(true); // ¡Esperamos que sea verdadero!
-    }, 500); // Esperamos 500ms para que tenga tiempo de reconectar.
-  });
-  
-  // Test B: Comprobar que si el token es malo, la conexión falla.
-  // (Este test está simplificado; si quieres probar el punto de "token caducado", 
-  // tendrías que poner un token inválido en la línea de auth de arriba).
-  it('B. Probar conexión con token inválido (opcional)', () => {
-    // Comentario plano: Este test solo comprueba que si pones un token raro, 
-    // es posible que la conexión no se mantenga o dé error.
-    // Por ahora, solo comprobamos que el socket existe.
-    expect(socket1).toBeDefined();
+      // El estado procede de la API persistida, no de un evento game:state.
+      const response = await fetch(`${baseUrl}/api/games/${gameId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(response.status).toBe(200);
+
+      return response.json() as Promise<{ id: number }>;
+    }
+
+    try {
+      const firstConnection = once<void>(socket, "connect");
+      socket.connect();
+      await firstConnection;
+      const firstGame = await subscribeAndLoadGame();
+      expect(firstGame.id).toBe(gameId);
+
+      // Al reconectar el servidor recibe un socket nuevo. Repetimos el flujo,
+      // sin depender de información almacenada en el socket anterior.
+      socket.disconnect();
+      const secondConnection = once<void>(socket, "connect");
+      socket.connect();
+      await secondConnection;
+      const recoveredGame = await subscribeAndLoadGame();
+      expect(recoveredGame.id).toBe(gameId);
+    } finally {
+      socket.disconnect();
+    }
   });
 });

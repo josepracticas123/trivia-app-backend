@@ -1,3 +1,8 @@
+// Servidor HTTP principal de TriviaApp.
+// Crea el servidor HTTP, inicializa Socket.IO y escucha en el puerto configurado.
+// Datos: Recibe la aplicación Express (app.ts), configura sockets en tiempo real y expone el servidor para uso externo.
+// Configuración obligatoria: JWT_SECRET (para firmar tokens), FRONTEND_ORIGIN (para CORS), PORT (puerto de escucha).
+// Flujo: 1. Validar variables de entorno críticas (JWT_SECRET, FRONTEND_ORIGIN, PORT) 2. Crear servidor HTTP 3. Inicializar sockets 4. Escuchar conexiones.
 ﻿import { app } from "./app.js";
 import { createServer } from "node:http";
 import { initSockets } from "./sockets/index.js";
