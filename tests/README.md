@@ -207,6 +207,19 @@ borrar por error la base de desarrollo o producción.
 - Comprueba la concurrencia real con PostgreSQL (control de versión y
   reintentos), algo que los mocks no pueden reproducir.
 
+### Qué comprueba `integration/reto19.recovery.test.ts`
+
+- Una reconexión usa un socket nuevo, vuelve a autorizar `join:game` y
+  recupera el *snapshot* persistido mediante `GET /api/games/:id`.
+- Un reinicio del servidor no pierde la partida: el cliente se autentica,
+  se suscribe de nuevo y lee el turno desde PostgreSQL.
+- Si se pierde la respuesta HTTP de una jugada, el `GET` muestra que ya fue
+  contestada; un reintento no duplica ni puntos ni avance de versión.
+- `game:updated` anuncia una versión confirmada. El cliente vuelve a leer el
+  estado y descarta un *snapshot* retrasado con versión menor.
+- Un JWT caducado y un usuario que no participa no pueden conectarse o
+  suscribirse/leer la partida ajena.
+
 ### Qué comprueba `integration/db-guard.test.ts`
 
 - `asegurarBaseDePruebas` acepta `trivia_test` en `localhost`.

@@ -4,6 +4,15 @@ import { questionIdSchema } from "../schemas/question-id.schema.js";
 import { responderError } from "../errors/responderError.js";
 import { paginationQuerySchema } from "../schemas/query.schema.js";
 
+/*
+  Controlador para obtener preguntas.
+  Flujo:
+  1. Validar query params de paginación y búsqueda usando Zod schema.
+  2. Si la validación falla, responder error 400.
+  3. Llamar al servicio getQuestions con los parámetros validados.
+  4. Mapear las preguntas a formato público (quitar hash, exponer solo datos visibles).
+  5. Devolver items + metadata de paginación (total, page, pageSize).
+*/
 export async function getQuestionsController(req: Request, res: Response) {
   // Validamos los query params.
   const resultado = paginationQuerySchema.safeParse(req.query);
@@ -28,7 +37,16 @@ export async function getQuestionsController(req: Request, res: Response) {
   return res.json({ items: itemsPublicos, total, page, pageSize });
 }
 
-// Validamos el id de la URL; si no cumple las reglas, respondemos con un error.
+/*
+  Controlador para obtener una pregunta por ID.
+  Flujo:
+  1. Validar el parámetro 'id' de la URL usando Zod schema.
+  2. Si la validación falla, responder error 400 (PREGUNTA_ID_INVALIDO).
+  3. Convertir el ID de texto a número (llega en la URL como string).
+  4. Consultar la pregunta en la base de datos.
+  5. Si no existe, responder error 404 (QUESTION_NOT_FOUND).
+  6. Devolver los datos públicos de la pregunta (sin el hash de la contraseña).
+*/
 export async function getQuestionByIdController(req: Request, res: Response) {
   const resultadoValidacion = questionIdSchema.safeParse(req.params);
 

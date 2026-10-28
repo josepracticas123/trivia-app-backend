@@ -1,5 +1,7 @@
-// Este archivo contiene la configuración principal de la aplicación Express,
-// incluyendo las rutas y middlewares necesarios para manejar las peticiones HTTP.
+// Configuración principal de la aplicación TriviaApp.
+// Recibe peticiones HTTP, gestiona rutas y middlewares, y sirve la documentación OpenAPI en /docs.
+// Datos: Entran por HTTP (JSON, headers), se procesan por controladores y servicios, y salen como respuestas JSON al frontend.
+// Dependencias: express, swagger-ui-express, middlewares de autenticación y manejo de errores, sockets en server.ts.
 import express from "express";
 // Importa Swagger UI para mostrar la documentación de la API en /docs.
 import swaggerUi from "swagger-ui-express";
@@ -34,6 +36,7 @@ app.use(
 );
 
 // Muestra la documentación de la API en /docs usando Swagger UI.
+// Agrupa todas las rutas definidas en los archivos routes/ y las muestra en esta ruta.
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
@@ -72,6 +75,7 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *                 code: INTERNAL_SERVER_ERROR
  *                 message: Ha ocurrido un error interno en el servidor
  */
+// Endpoint para obtener la especificación OpenAPI en formato JSON.
 app.get("/api/openapi.json", (_req, res) => {
   res.json(swaggerSpec);
 });
@@ -81,6 +85,7 @@ app.get("/api/openapi.json", (_req, res) => {
 app.use(express.json());
 
 // Captura los errores producidos por un JSON mal formado.
+// Maneja errores de sintaxis JSON y cuerpos demasiado grandes.
 app.use(jsonErrorMiddleware);
 
 /**
@@ -111,6 +116,7 @@ app.use(jsonErrorMiddleware);
  *                 code: INTERNAL_SERVER_ERROR
  *                 message: Ha ocurrido un error interno en el servidor
  */
+// Ruta de bienvenida para verificar que la API está activa y respondiendo.
 app.get("/", (_req, res) => {
   res.json({ message: "Bienvenido a TriviaApp Backend" });
 });

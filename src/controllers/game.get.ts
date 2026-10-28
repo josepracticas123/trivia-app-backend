@@ -38,6 +38,8 @@ export async function getGameController(req: Request, res: Response) {
   return res.status(200).json({
     id: game.id,
     status: game.status,
+    // Versión del snapshot recuperado. No contiene información sensible.
+    turnVersion: game.turnVersion,
     // Cuándo empezó la partida y cuándo terminó (null mientras sigue activa).
     createdAt: game.createdAt,
     finishedAt: game.finishedAt,
@@ -66,9 +68,7 @@ export async function getGameController(req: Request, res: Response) {
         position: question.position,
         statement: question.statement,
         // true si ya respondiste esta pregunta; el cliente la marca como hecha.
-        answered:
-          question.answered ??
-          question.answers.length > 0,
+        answered: question.answered ?? question.answers.length > 0,
         choices: question.choices.map((choice) => ({
           id: choice.id,
           text: choice.text,

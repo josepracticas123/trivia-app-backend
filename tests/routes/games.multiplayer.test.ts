@@ -64,7 +64,9 @@ describe("POST /api/games - multijugador", () => {
   it("crea sala WAITING con codigo (201)", async () => {
     // Simulamos que el servicio crea la sala.
     vi.mocked(createMultiplayerGame).mockResolvedValue({
-      id: 1, status: "WAITING", code: "ABCDEF",
+      id: 1,
+      status: "WAITING",
+      code: "ABCDEF",
     } as never);
 
     const token = tokenDe(1); // Token del usuario 1.
@@ -213,23 +215,20 @@ describe("POST /api/games/:id/answers - turnos multijugador", () => {
   it.each([
     ["GAME_NOT_ACTIVE", 409, "GAME_NOT_ACTIVE"],
     ["CONFLICTO_CONCURRENCIA", 409, "CONFLICT"],
-  ] as const)(
-    "traduce %s a HTTP %i",
-    async (errorServicio, status, codigo) => {
-      vi.mocked(submitAnswer).mockResolvedValue({
-        ok: false,
-        error: errorServicio,
-      } as never);
+  ] as const)("traduce %s a HTTP %i", async (errorServicio, status, codigo) => {
+    vi.mocked(submitAnswer).mockResolvedValue({
+      ok: false,
+      error: errorServicio,
+    } as never);
 
-      const res = await request(app)
-        .post("/api/games/1/answers")
-        .set("Authorization", `Bearer ${tokenDe(1)}`)
-        .send(body);
+    const res = await request(app)
+      .post("/api/games/1/answers")
+      .set("Authorization", `Bearer ${tokenDe(1)}`)
+      .send(body);
 
-      expect(res.status).toBe(status);
-      expect(res.body.error.code).toBe(codigo);
-    },
-  );
+    expect(res.status).toBe(status);
+    expect(res.body.error.code).toBe(codigo);
+  });
 });
 
 // Grupo: estado público del multijugador.
@@ -239,6 +238,7 @@ describe("GET /api/games/:id - estado multijugador", () => {
       id: 1,
       mode: "MULTIPLAYER",
       status: "ACTIVE",
+      turnVersion: 6,
       score: 0,
       nextQuestionId: 12,
       createdAt: new Date("2026-10-01T10:00:00.000Z"),
@@ -272,6 +272,8 @@ describe("GET /api/games/:id - estado multijugador", () => {
       .set("Authorization", `Bearer ${tokenDe(2)}`);
 
     expect(res.status).toBe(200);
+    // La recuperación incluye la versión del mismo snapshot persistido.
+    expect(res.body.turnVersion).toBe(6);
     expect(res.body.mode).toBe("MULTIPLAYER");
     expect(res.body.currentTurn).toEqual({
       userId: 2,

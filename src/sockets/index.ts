@@ -3,12 +3,20 @@ import type { Server as HttpServer } from "node:http";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 import type { AppServer, AppSocket, SocketData } from "./socket.types.js";
-import type { ClientToServerEvents, ServerToClientEvents } from "./socket.types.js";
+import type {
+  ClientToServerEvents,
+  ServerToClientEvents,
+} from "./socket.types.js";
 
 export let io: AppServer | undefined;
 
 export function initSockets(server: HttpServer): AppServer {
-  io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>(server, {
+  io = new SocketIOServer<
+    ClientToServerEvents,
+    ServerToClientEvents,
+    Record<string, never>,
+    SocketData
+  >(server, {
     cors: {
       origin: process.env.FRONTEND_ORIGIN,
       credentials: true,
@@ -96,6 +104,8 @@ export function initSockets(server: HttpServer): AppServer {
           return;
         }
 
+        // Cada conexión tiene su propio socket. Por eso comprobamos la
+        // pertenencia cada vez que el cliente solicita entrar en una sala.
         const participacion = await prisma.gamePlayer.findFirst({
           where: { gameId: gid, userId },
         });
@@ -108,8 +118,11 @@ export function initSockets(server: HttpServer): AppServer {
         }
 
         await socket.join(`game:${gid}`);
+        // Confirmamos la suscripción. El cliente obtiene el estado público
+        // persistido mediante GET /api/games/:id después de este evento.
         socket.emit("joined:game", { gameId: gid });
-      } catch {
+      } catch (error) {
+        console.error("Error in join:game:", error);
         socket.emit("error:game", { message: "No se pudo unir a la sala" });
       }
     });

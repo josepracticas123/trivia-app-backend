@@ -150,6 +150,7 @@ describe("GET /api/games/:id", () => {
     vi.mocked(getGameById).mockResolvedValue({
       id: 7,
       status: "ACTIVE",
+      turnVersion: 4,
       score: 2,
       nextQuestionId: 42,
       createdAt: new Date("2026-10-01T10:00:00.000Z"),
@@ -181,6 +182,8 @@ describe("GET /api/games/:id", () => {
     // El progreso sí viaja...
     expect(response.body.score).toBe(2);
     expect(response.body.nextQuestionId).toBe(42);
+    // El snapshot recuperado siempre identifica la versión persistida.
+    expect(response.body.turnVersion).toBe(4);
 
     // ...pero las soluciones NUNCA: comprobamos que la copia de la
     // pregunta solo lleva los campos públicos.
@@ -200,7 +203,7 @@ describe("GET /api/games/:id", () => {
     expect(response.body.questions[0]).not.toHaveProperty("answers");
     expect(response.body.questions[0]).not.toHaveProperty("questionId");
   });
-   
+
   // El enunciado pide poder CONTINUAR una partida: una pregunta pendiente
   // (sin respuestas) debe marcarse como NO respondida, y su solución sigue oculta.
   it("marca answered:false en una pregunta pendiente y sigue sin solución", async () => {
@@ -242,7 +245,6 @@ describe("GET /api/games/:id", () => {
     // la solución sigue sin viajar.
     expect(response.body.questions[0]).not.toHaveProperty("solution");
   });
-
 });
 
 /* POST /api/games/:id/answers — responder la pregunta de turno */
