@@ -145,12 +145,17 @@ export async function joinGame(
   return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
 }
 // Eliminacion de la sala en prisma y participantes y demas cosas
-type DeleteGameError = "GAME_NOT_FOUND" | "NOT_ADMIN" | "PARTIDA_YA_INICIADA";
+type DeleteGameError =
+  | "GAME_NOT_FOUND"
+  | "NOT_ADMIN"
+  | "PARTIDA_YA_INICIADA"
+  | "CONFLICTO_CONCURRENCIA";
 
 export async function deleteWaitingGame(
   gameId: number,
   userId: number,
 ): Promise<{ ok: true } | { ok: false; error: DeleteGameError }> {
+  // Lectura inicial: sirve para dar el error correcto al usuario.
   const game = await prisma.game.findUnique({
     where: { id: gameId },
     include: { players: true },
@@ -159,17 +164,62 @@ export async function deleteWaitingGame(
   if (!game) {
     return { ok: false, error: "GAME_NOT_FOUND" };
   }
+
   const creator = game.players.find((player) => player.isCreator);
   if (!creator || creator.userId !== userId) {
     return { ok: false, error: "NOT_ADMIN" };
   }
+
   if (game.mode !== "MULTIPLAYER" || game.status !== "WAITING") {
     return { ok: false, error: "PARTIDA_YA_INICIADA" };
   }
-  await prisma.game.delete({
-    where: { id: gameId },
+
+  // Operación atómica: si otra petición ya inició la partida, count será 0
+  // y NO se borrará una partida ACTIVE.
+  const deleted = await prisma.game.deleteMany({
+    where: {
+      id: gameId,
+      mode: "MULTIPLAYER",
+      status: "WAITING",
+      players: {
+        some: {
+          userId,
+          isCreator: true,
+        },
+      },
+    },
   });
-  return { ok: true };
+
+  if (deleted.count === 1) {
+    return { ok: true };
+  }
+
+  // La sala cambió entre la lectura inicial y el borrado.
+  // Releemos para devolver un error de negocio concreto.
+  const currentGame = await prisma.game.findUnique({
+    where: { id: gameId },
+    include: { players: true },
+  });
+
+  if (!currentGame) {
+    return { ok: false, error: "GAME_NOT_FOUND" };
+  }
+
+  const currentCreator = currentGame.players.find(
+    (player) => player.isCreator,
+  );
+  if (!currentCreator || currentCreator.userId !== userId) {
+    return { ok: false, error: "NOT_ADMIN" };
+  }
+
+  if (
+    currentGame.mode !== "MULTIPLAYER" ||
+    currentGame.status !== "WAITING"
+  ) {
+    return { ok: false, error: "PARTIDA_YA_INICIADA" };
+  }
+
+  return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
 }
 /* Comprueba la aceptación de ambos jugadores para la creación de las
 preguntsa en la sala*/
@@ -216,11 +266,38 @@ userId: number,
   try{
     const result: ConfirmGameReadyResult = await prisma.$transaction(
       async (txt) =>{
-        // Marca la aceptación del usuario actual. Repetir el clic no cambia nada.
-        await txt.gamePlayer.updateMany({
-          where:{gameId, userId},
-          data:{isReady:true},
+        const gameBeforeConfirmation = await txt.game.findUnique({
+          where: { id: gameId },
+          include: { players: true },
         });
+
+        if (!gameBeforeConfirmation) {
+          return { ok: false, error: "GAME_NOT_FOUND" };
+        }
+        if (gameBeforeConfirmation.mode !== "MULTIPLAYER") {
+          return { ok: false, error: "VALIDATION_ERROR" };
+        }
+        if (gameBeforeConfirmation.status !== "WAITING") {
+          return { ok: false, error: "PARTIDA_YA_INICIADA" };
+        }
+
+        const player = gameBeforeConfirmation.players.find(
+          (candidate) => candidate.userId === userId,
+        );
+        if (!player) {
+          return { ok: false, error: "NOT_PARTICIPANT" };
+        }
+
+        // Marca la aceptación del usuario actual. Repetir el clic no cambia nada.
+        if (!player.isReady) {
+          const confirmation = await txt.gamePlayer.updateMany({
+            where: { gameId, userId, isReady: false },
+            data: { isReady: true },
+          });
+          if (confirmation.count !== 1) {
+            throw new Error("VERSION_CONFLICT");
+          }
+        }
         // Leemos ele stado después de guardar la confirmación.
         const currentGame = await txt.game.findUnique({
           where: {id:gameId},

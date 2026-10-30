@@ -40,9 +40,15 @@ export const gameSchemas = {
           properties: {
             userId: { type: "integer", example: 1 },
             turnOrder: { type: "integer", enum: [1, 2], example: 1 },
+            isReady: {
+              type: "boolean",
+              description:
+                "Indica si este jugador ya confirmó que está preparado para iniciar la partida.",
+              example: false,
+            },
             score: { type: "integer", example: 2 },
           },
-          required: ["userId", "turnOrder", "score"],
+          required: ["userId", "turnOrder", "isReady", "score"],
         },
       },
       winnerUserId: {
@@ -98,7 +104,8 @@ export const gameSchemas = {
             },
             answeredCount: {
               type: "integer",
-              description: "Respuestas recibidas para esta pregunta (0, 1 o 2).",
+              description:
+                "Respuestas recibidas para esta pregunta (0, 1 o 2).",
               example: 1,
             },
             revealed: {

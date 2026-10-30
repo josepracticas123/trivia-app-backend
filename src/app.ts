@@ -709,53 +709,121 @@ app.use("/api/auth", authRouter);
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/Error"
- * /api/games/{id}/start:
+  * /api/games/{id}/start:
  *   post:
- *     summary: Iniciar una partida multijugador
- *     description: Solo el creador puede iniciar cuando hay dos jugadores. Asigna 5 preguntas compartidas y pasa a ACTIVE.
+ *     summary: Confirmar que un jugador está preparado para iniciar
+ *     description: >
+ *       Cualquier participante de una sala multijugador puede confirmar que
+ *       está preparado. La primera confirmación mantiene la sala en WAITING
+ *       con started: false. Cuando los dos participantes han confirmado, el
+ *       servidor crea las cinco preguntas compartidas y la partida pasa a
+ *       ACTIVE con started: true.
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: integer, minimum: 1 }
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Identificador de la sala multijugador.
  *     responses:
  *       200:
- *         description: Partida iniciada
+ *         description: Confirmación registrada o partida iniciada tras la segunda confirmación.
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [id, status, started]
  *               properties:
- *                 id: { type: integer, example: 1 }
- *                 status: { type: string, enum: [WAITING, ACTIVE, FINISHED], example: ACTIVE }
+ *                 id:
+ *                   type: integer
+ *                   example: 1
+ *                 status:
+ *                   type: string
+ *                   enum: [WAITING, ACTIVE]
+ *                   example: WAITING
+ *                 started:
+ *                   type: boolean
+ *                   description: false si falta confirmar el otro jugador; true si ambos ya confirmaron.
+ *                   example: false
  *       400:
- *         description: Falta el segundo jugador o partida ya iniciada
+ *         description: El id no es válido o la partida no es multijugador.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/Error"
  *       401:
- *         description: Token ausente, invalido o caducado
+ *         description: Token ausente, inválido o caducado.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/Error"
  *       403:
- *         description: No eres el creador
+ *         description: El usuario no participa en esta sala.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/Error"
  *       404:
- *         description: Partida no existe
+ *         description: La partida no existe.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/Error"
  *       409:
- *         description: Partida ya iniciada
+ *         description: La partida ya no admite confirmaciones, faltan preguntas o hubo un conflicto de concurrencia.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ * /api/games/{id}:
+ *   delete:
+ *     summary: Eliminar una sala multijugador en espera
+ *     description: >
+ *       Elimina una sala creada por error únicamente si sigue en estado WAITING.
+ *       Solo puede hacerlo el creador de la sala. No permite eliminar partidas
+ *       individuales, activas ni finalizadas.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Identificador de la sala.
+ *     responses:
+ *       204:
+ *         description: Sala eliminada correctamente. No devuelve cuerpo.
+ *       400:
+ *         description: El id no es válido.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       401:
+ *         description: Token ausente, inválido o caducado.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       403:
+ *         description: El usuario no es el creador de la sala.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       404:
+ *         description: La partida no existe.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *       409:
+ *         description: La sala ya no está en espera o hubo un conflicto de concurrencia.
  *         content:
  *           application/json:
  *             schema:

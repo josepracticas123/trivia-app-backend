@@ -113,8 +113,9 @@ Para operaciones de partida, tras confirmar la transacción en la base de datos,
 | DELETE | `/api/questions/:id` | Elimina una pregunta | Token JWT + ADMIN |
 | POST | `/api/games` | Crea una partida | Token JWT |
 | POST | `/api/games/join` | Se une a una sala multijugador | Token JWT |
-| POST | `/api/games/:id/start` | Inicia una partida multijugador | Token JWT (creador) |
-| GET | `/api/games/:id` | Estado público de una partida | Token JWT (participante) |
+| POST | `/api/games/:id/start` | Confirma que un participante está listo; inicia la partida cuando ambos confirman | Token JWT (participante) |
+| DELETE | `/api/games/:id` | Elimina una sala multijugador en espera | Token JWT (creador) |
+| GET | `/api/games/:id` | Estado público de una partida, incluyendo `isReady` en multijugador | Token JWT (participante) |
 | POST | `/api/games/:id/answers` | Responde a la pregunta en turno | Token JWT (participante) |
 | GET | `/api/openapi.json` | Especificación OpenAPI 3.0 | Público |
 | GET | `/docs` | Interfaz Swagger UI | Público |
