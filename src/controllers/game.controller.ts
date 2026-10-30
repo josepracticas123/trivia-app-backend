@@ -7,3 +7,4 @@ export { answerController } from "./game.answer.js";
 export { getMyGamesController } from "./game.history.js";
 export { joinGameController } from "./game.join.js";
 export { startGameController } from "./game.start.js";
+export { deleteGameController } from "./game.delete.js";

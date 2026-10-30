@@ -171,6 +171,166 @@ export async function deleteWaitingGame(
   });
   return { ok: true };
 }
+/* Comprueba la aceptación de ambos jugadores para la creación de las
+preguntsa en la sala*/
+ type ConfirmGameReadyError =
+ |"GAME_NOT_FOUND"
+ |"VALIDATION_ERROR"
+ |"PARTIDA_YA_INICIADA"
+ |"NOT_PARTICIPANT"
+ |"NOT_ENOUGH_QUESTIONS"
+ |"CONFLICTO_CONCURRENCIA";
+
+ type ConfirmGameReadyResult = 
+ | {
+  ok: true;
+  started: boolean;
+  game: {id: number; status: string; turnVersion: number};
+ }
+ | {ok:false; error: ConfirmGameReadyError};
+ 
+ /* cada jugador confirma qu eesta preparado
+las preguntas solo se confirman cuando ambos han confirmado */
+export async function confirmGameReady(
+  gameId: number,
+userId: number,
+) : Promise<ConfirmGameReadyResult> {
+  for (let intento = 0; intento < MAX_REINTENTOS; intento++ ){
+    const game = await prisma.game.findUnique({
+      where: {id: gameId},
+      include:{players: true},
+    });
+  if(!game){
+    return {ok:false, error: "GAME_NOT_FOUND"};
+  }
+  if(game.mode !== "MULTIPLAYER"){
+    return {ok:false, error: "VALIDATION_ERROR"};
+  }
+
+  /*Si el catálogo no tiene preguntas, nadie queda marcado com preparado*/
+  const questions = await getRandomQuestions();
+  if(questions.length < PREGUNTAS_POR_PARTIDA){
+    return {ok:false, error: "NOT_ENOUGH_QUESTIONS"};
+  }
+
+  try{
+    const result: ConfirmGameReadyResult = await prisma.$transaction(
+      async (txt) =>{
+        // Marca la aceptación del usuario actual. Repetir el clic no cambia nada.
+        await txt.gamePlayer.updateMany({
+          where:{gameId, userId},
+          data:{isReady:true},
+        });
+        // Leemos ele stado después de guardar la confirmación.
+        const currentGame = await txt.game.findUnique({
+          where: {id:gameId},
+          include: {players: true},
+        });
+        if(!currentGame){
+          return {ok:false, error:"GAME_NOT_FOUND"};
+        }
+        if(currentGame.status === "ACTIVE"){
+          return{
+ ok: true,
+              started: true,
+              game: {
+                id: currentGame.id,
+                status: currentGame.status,
+                turnVersion: currentGame.turnVersion,
+              },
+            };
+          }
+
+          const allReady =
+            currentGame.players.length === 2 &&
+            currentGame.players.every((player) => player.isReady);
+
+          // Aún falta el segundo jugador o su confirmación.
+          if (!allReady) {
+            return {
+              ok: true,
+              started: false,
+              game: {
+                id: currentGame.id,
+                status: currentGame.status,
+                turnVersion: currentGame.turnVersion,
+              },
+            };
+          }
+
+          // Ambos aceptaron: ahora sí comienza y se crean las preguntas.
+          const updated = await txt.game.updateMany({
+            where: { id: gameId, status: "WAITING" },
+            data: {
+              status: "ACTIVE",
+              currentPosition: 0,
+              currentTurnOrder: 1,
+              turnVersion: { increment: 1 },
+            },
+          });
+
+          if (updated.count !== 1) {
+            throw new Error("VERSION_CONFLICT");
+          }
+
+          for (const [position, question] of questions.entries()) {
+            await txt.gameQuestion.create({
+              data: {
+                gameId,
+                position,
+                statement: question.statement,
+                solution: question.choices.findIndex(
+                  (choice) => choice.isCorrect,
+                ),
+                questionId: question.id,
+                choices: {
+                  create: question.choices.map((choice) => ({
+                    text: choice.text,
+                    position: choice.position,
+                  })),
+                },
+              },
+            });
+          }
+
+          return {
+            ok: true,
+            started: true,
+            game: {
+              id: currentGame.id,
+              status: "ACTIVE",
+              turnVersion: currentGame.turnVersion + 1,
+            },
+          };
+        },
+        { isolationLevel: "Serializable" },
+      );
+
+      return result;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034"
+      ) {
+        if (intento === MAX_REINTENTOS - 1) {
+          return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
+        }
+        continue;
+      }
+
+      if (error instanceof Error && error.message === "VERSION_CONFLICT") {
+        if (intento === MAX_REINTENTOS - 1) {
+          return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
+        }
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
+}
 type StartGameError =
   | "GAME_NOT_FOUND"
   | "VALIDATION_ERROR"

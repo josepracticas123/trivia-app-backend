@@ -40,7 +40,7 @@ export async function getGameById(gameId: number, userId?: number) {
     include: {
       // Participantes con su orden de turno y puntuaciónn persistida.
       players: {
-        select: { userId: true, turnOrder: true, score: true },
+        select: { userId: true, turnOrder: true, score: true, isReady: true },
         orderBy: { turnOrder: "asc" },
       },
       // Las 5 preguntas en orden de juego (posición de 0..4), con sus opciones
@@ -111,6 +111,7 @@ export async function getGameById(gameId: number, userId?: number) {
   const players = game.players.map((player) => ({
     userId: player.userId,
     turnOrder: player.turnOrder,
+    isReady: player.isReady,
     // En individual la puntuación guardada es la verdad; en multijugador se
     // publica la revelada hasta que la partida termina.
     score: esMultijugador
