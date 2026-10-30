@@ -10,11 +10,11 @@ import {
   createGame,
   createMultiplayerGame,
   joinGame,
-  startGame,
+  confirmGameReady,
   getGameById,
   submitAnswer,
   getMyGames,
-} from "../../src/services/game.services.js"; // Servicios (se simulan).
+} from "../../src/services/game.services.js";
 import jwt from "jsonwebtoken";
 import { prisma } from "../../src/lib/prisma.js"; // Se simula para authMiddleware.
 
@@ -23,7 +23,7 @@ vi.mock("../../src/services/game.services.js", () => ({
   createGame: vi.fn(),
   createMultiplayerGame: vi.fn(),
   joinGame: vi.fn(),
-  startGame: vi.fn(),
+  confirmGameReady: vi.fn(),
   getGameById: vi.fn(),
   submitAnswer: vi.fn(),
   getMyGames: vi.fn(),
@@ -295,51 +295,56 @@ describe("GET /api/games/:id - estado multijugador", () => {
   });
 });
 
-// Grupo: iniciar partida.
 describe("POST /api/games/:id/start", () => {
-  // Test: no creador devuelve 403.
-  it("no creador devuelve 403", async () => {
-    vi.mocked(startGame).mockResolvedValue({
+  it("usuario ajeno devuelve 403", async () => {
+    vi.mocked(confirmGameReady).mockResolvedValue({
       ok: false,
-      error: "NOT_ADMIN",
+      error: "NOT_PARTICIPANT",
     } as never);
 
-    const token = tokenDe(2); // Usuario 2 (no creador).
     const res = await request(app)
       .post("/api/games/1/start")
-      .set("Authorization", `Bearer ${token}`);
+      .set("Authorization", `Bearer ${tokenDe(3)}`);
 
-    expect(res.status).toBe(403); // NOT_ADMIN → 403.
+    expect(res.status).toBe(403);
   });
 
-  // Test: falta segundo jugador devuelve 400.
-  it("falta segundo jugador devuelve 400", async () => {
-    vi.mocked(startGame).mockResolvedValue({
-      ok: false,
-      error: "VALIDATION_ERROR",
-    } as never);
-
-    const token = tokenDe(1);
-    const res = await request(app)
-      .post("/api/games/1/start")
-      .set("Authorization", `Bearer ${token}`);
-
-    expect(res.status).toBe(400);
-  });
-
-  // Test: inicio exitoso devuelve 200 ACTIVE.
-  it("inicio exitoso devuelve 200 ACTIVE", async () => {
-    vi.mocked(startGame).mockResolvedValue({
+  it("primer jugador confirma y la sala sigue WAITING", async () => {
+    vi.mocked(confirmGameReady).mockResolvedValue({
       ok: true,
-      game: { id: 1, status: "ACTIVE" },
+      started: false,
+      game: { id: 1, status: "WAITING", turnVersion: 0 },
     } as never);
 
-    const token = tokenDe(1); // Creador.
     const res = await request(app)
       .post("/api/games/1/start")
-      .set("Authorization", `Bearer ${token}`);
+      .set("Authorization", `Bearer ${tokenDe(1)}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe("ACTIVE");
+    expect(res.body).toMatchObject({
+      id: 1,
+      status: "WAITING",
+      started: false,
+    });
+  });
+
+  it("segundo jugador confirma e inicia la partida", async () => {
+    vi.mocked(confirmGameReady).mockResolvedValue({
+      ok: true,
+      started: true,
+      game: { id: 1, status: "ACTIVE", turnVersion: 1 },
+    } as never);
+
+    const res = await request(app)
+      .post("/api/games/1/start")
+      .set("Authorization", `Bearer ${tokenDe(2)}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: 1,
+      status: "ACTIVE",
+      started: true,
+    });
   });
 });
+

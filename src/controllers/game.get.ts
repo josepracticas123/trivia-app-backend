@@ -57,6 +57,7 @@ export async function getGameController(req: Request, res: Response) {
             userId: player.userId,
             turnOrder: player.turnOrder,
             score: player.score,
+            isReady: player.isReady,
           })),
           winnerUserId: game.winnerUserId,
           isDraw: game.isDraw,

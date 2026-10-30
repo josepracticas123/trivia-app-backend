@@ -704,6 +704,15 @@ Un JWT tiene tres partes: cabecera, contenido y firma.
 - **PR y correcciones:**
   - Rama `reto/16-sala-dos-jugadores` hacia `develop`, sin merge.
 
+- **Corrección posterior: confirmación y eliminación segura de salas** (ampliación del reto 16)
+  - Cada `GamePlayer` tiene `isReady` para guardar si confirmó que está preparado.
+  - `POST /api/games/:id/start` permite que los dos participantes confirmen: el primero mantiene `WAITING` y `started: false`; el segundo inicia `ACTIVE` con `started: true` y crea las preguntas.
+  - `GET /api/games/:id` expone `players[].isReady` para reconstruir la pantalla de espera.
+  - `DELETE /api/games/:id` solo permite al creador eliminar una sala `MULTIPLAYER` en `WAITING`.
+  - El borrado usa `deleteMany` con condiciones de id, mode, status y creador para evitar borrar una partida que haya pasado a `ACTIVE`.
+  - Pruebas ejecutadas: `npm.cmd run typecheck`, `npm.cmd run build`, `npm.cmd test -- tests/services/game.ready.test.ts` (6 correctas) y `npm.cmd test -- tests/services/game.delete.test.ts` (1 correcta).
+  - Esta es una ampliación del reto 16; no sustituye la entrega ni el frontend del reto 20.
+
 ## 17 · Juega por turnos mediante HTTP
 
 - **Lo que he construido:**

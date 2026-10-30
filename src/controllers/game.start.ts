@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { startGame } from "../services/game.services.js";
+import { confirmGameReady } from "../services/game.services.js";
 import { responderError } from "../errors/responderError.js";
 import { responderMiddlewareError } from "../errors/responderMiddlewareError.js";
 import { idParamSchema } from "../schemas/question-id.schema.js";
@@ -17,8 +17,7 @@ export async function startGameController(req: Request, res: Response) {
   const gameId = Number(resultadoId.data.id);
 
   // Llama al servicio; devuelve { ok, game } o { ok, error }.
-  const resultado = await startGame(gameId, userId);
-
+const resultado = await confirmGameReady(gameId, userId);
   if (!resultado.ok) {
     return responderError(res, resultado.error);
   }
@@ -32,7 +31,9 @@ export async function startGameController(req: Request, res: Response) {
     status: resultado.game.status, // ahora ACTIVE
   });
 
-  return res
-    .status(200)
-    .json({ id: resultado.game.id, status: resultado.game.status });
+ return res.status(200).json({
+  id: resultado.game.id,
+  status: resultado.game.status,
+  started: resultado.started,
+});
 }

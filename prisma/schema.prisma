@@ -95,6 +95,7 @@ model GamePlayer {
   user   user @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId Int
   isCreator Boolean @default(false)
+  isReady   Boolean @default(false)
   // Orden de turno dentro de la partida: 1 responde antes que 2.
   turnOrder Int
   // Puntuación persistida; se incrementa en la transacción de la respuesta.

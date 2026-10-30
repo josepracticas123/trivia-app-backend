@@ -7,6 +7,7 @@ import { Router } from "express";
 import {
   answerController,
   createGameController,
+  deleteGameController,
   getGameController,
   joinGameController,
   startGameController,
@@ -20,6 +21,9 @@ export const gameRouter = Router();
 // POST /api/games → crear partida (individual o multijugador según body)
 // Requiere autenticación. El cuerpo define el tipo de partida.
 gameRouter.post("/", authMiddleware, createGameController);
+
+// DELETE /api/games/:id → eliminar una sala en espera (solo su creador)
+gameRouter.delete("/:id", authMiddleware, deleteGameController);
 
 // POST /api/games/join → unirse a una sala con código
 // Debe ir ANTES de /:id. Requiere autenticación.

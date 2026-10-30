@@ -144,6 +144,270 @@ export async function joinGame(
   }
   return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
 }
+// Eliminacion de la sala en prisma y participantes y demas cosas
+type DeleteGameError =
+  | "GAME_NOT_FOUND"
+  | "NOT_ADMIN"
+  | "PARTIDA_YA_INICIADA"
+  | "CONFLICTO_CONCURRENCIA";
+
+export async function deleteWaitingGame(
+  gameId: number,
+  userId: number,
+): Promise<{ ok: true } | { ok: false; error: DeleteGameError }> {
+  // Lectura inicial: sirve para dar el error correcto al usuario.
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    include: { players: true },
+  });
+
+  if (!game) {
+    return { ok: false, error: "GAME_NOT_FOUND" };
+  }
+
+  const creator = game.players.find((player) => player.isCreator);
+  if (!creator || creator.userId !== userId) {
+    return { ok: false, error: "NOT_ADMIN" };
+  }
+
+  if (game.mode !== "MULTIPLAYER" || game.status !== "WAITING") {
+    return { ok: false, error: "PARTIDA_YA_INICIADA" };
+  }
+
+  // Operación atómica: si otra petición ya inició la partida, count será 0
+  // y NO se borrará una partida ACTIVE.
+  const deleted = await prisma.game.deleteMany({
+    where: {
+      id: gameId,
+      mode: "MULTIPLAYER",
+      status: "WAITING",
+      players: {
+        some: {
+          userId,
+          isCreator: true,
+        },
+      },
+    },
+  });
+
+  if (deleted.count === 1) {
+    return { ok: true };
+  }
+
+  // La sala cambió entre la lectura inicial y el borrado.
+  // Releemos para devolver un error de negocio concreto.
+  const currentGame = await prisma.game.findUnique({
+    where: { id: gameId },
+    include: { players: true },
+  });
+
+  if (!currentGame) {
+    return { ok: false, error: "GAME_NOT_FOUND" };
+  }
+
+  const currentCreator = currentGame.players.find(
+    (player) => player.isCreator,
+  );
+  if (!currentCreator || currentCreator.userId !== userId) {
+    return { ok: false, error: "NOT_ADMIN" };
+  }
+
+  if (
+    currentGame.mode !== "MULTIPLAYER" ||
+    currentGame.status !== "WAITING"
+  ) {
+    return { ok: false, error: "PARTIDA_YA_INICIADA" };
+  }
+
+  return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
+}
+/* Comprueba la aceptación de ambos jugadores para la creación de las
+preguntsa en la sala*/
+ type ConfirmGameReadyError =
+ |"GAME_NOT_FOUND"
+ |"VALIDATION_ERROR"
+ |"PARTIDA_YA_INICIADA"
+ |"NOT_PARTICIPANT"
+ |"NOT_ENOUGH_QUESTIONS"
+ |"CONFLICTO_CONCURRENCIA";
+
+ type ConfirmGameReadyResult = 
+ | {
+  ok: true;
+  started: boolean;
+  game: {id: number; status: string; turnVersion: number};
+ }
+ | {ok:false; error: ConfirmGameReadyError};
+ 
+ /* cada jugador confirma qu eesta preparado
+las preguntas solo se confirman cuando ambos han confirmado */
+export async function confirmGameReady(
+  gameId: number,
+userId: number,
+) : Promise<ConfirmGameReadyResult> {
+  for (let intento = 0; intento < MAX_REINTENTOS; intento++ ){
+    const game = await prisma.game.findUnique({
+      where: {id: gameId},
+      include:{players: true},
+    });
+  if(!game){
+    return {ok:false, error: "GAME_NOT_FOUND"};
+  }
+  if(game.mode !== "MULTIPLAYER"){
+    return {ok:false, error: "VALIDATION_ERROR"};
+  }
+
+  /*Si el catálogo no tiene preguntas, nadie queda marcado com preparado*/
+  const questions = await getRandomQuestions();
+  if(questions.length < PREGUNTAS_POR_PARTIDA){
+    return {ok:false, error: "NOT_ENOUGH_QUESTIONS"};
+  }
+
+  try{
+    const result: ConfirmGameReadyResult = await prisma.$transaction(
+      async (txt) =>{
+        const gameBeforeConfirmation = await txt.game.findUnique({
+          where: { id: gameId },
+          include: { players: true },
+        });
+
+        if (!gameBeforeConfirmation) {
+          return { ok: false, error: "GAME_NOT_FOUND" };
+        }
+        if (gameBeforeConfirmation.mode !== "MULTIPLAYER") {
+          return { ok: false, error: "VALIDATION_ERROR" };
+        }
+        if (gameBeforeConfirmation.status !== "WAITING") {
+          return { ok: false, error: "PARTIDA_YA_INICIADA" };
+        }
+
+        const player = gameBeforeConfirmation.players.find(
+          (candidate) => candidate.userId === userId,
+        );
+        if (!player) {
+          return { ok: false, error: "NOT_PARTICIPANT" };
+        }
+
+        // Marca la aceptación del usuario actual. Repetir el clic no cambia nada.
+        if (!player.isReady) {
+          const confirmation = await txt.gamePlayer.updateMany({
+            where: { gameId, userId, isReady: false },
+            data: { isReady: true },
+          });
+          if (confirmation.count !== 1) {
+            throw new Error("VERSION_CONFLICT");
+          }
+        }
+        // Leemos ele stado después de guardar la confirmación.
+        const currentGame = await txt.game.findUnique({
+          where: {id:gameId},
+          include: {players: true},
+        });
+        if(!currentGame){
+          return {ok:false, error:"GAME_NOT_FOUND"};
+        }
+        if(currentGame.status === "ACTIVE"){
+          return{
+ ok: true,
+              started: true,
+              game: {
+                id: currentGame.id,
+                status: currentGame.status,
+                turnVersion: currentGame.turnVersion,
+              },
+            };
+          }
+
+          const allReady =
+            currentGame.players.length === 2 &&
+            currentGame.players.every((player) => player.isReady);
+
+          // Aún falta el segundo jugador o su confirmación.
+          if (!allReady) {
+            return {
+              ok: true,
+              started: false,
+              game: {
+                id: currentGame.id,
+                status: currentGame.status,
+                turnVersion: currentGame.turnVersion,
+              },
+            };
+          }
+
+          // Ambos aceptaron: ahora sí comienza y se crean las preguntas.
+          const updated = await txt.game.updateMany({
+            where: { id: gameId, status: "WAITING" },
+            data: {
+              status: "ACTIVE",
+              currentPosition: 0,
+              currentTurnOrder: 1,
+              turnVersion: { increment: 1 },
+            },
+          });
+
+          if (updated.count !== 1) {
+            throw new Error("VERSION_CONFLICT");
+          }
+
+          for (const [position, question] of questions.entries()) {
+            await txt.gameQuestion.create({
+              data: {
+                gameId,
+                position,
+                statement: question.statement,
+                solution: question.choices.findIndex(
+                  (choice) => choice.isCorrect,
+                ),
+                questionId: question.id,
+                choices: {
+                  create: question.choices.map((choice) => ({
+                    text: choice.text,
+                    position: choice.position,
+                  })),
+                },
+              },
+            });
+          }
+
+          return {
+            ok: true,
+            started: true,
+            game: {
+              id: currentGame.id,
+              status: "ACTIVE",
+              turnVersion: currentGame.turnVersion + 1,
+            },
+          };
+        },
+        { isolationLevel: "Serializable" },
+      );
+
+      return result;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034"
+      ) {
+        if (intento === MAX_REINTENTOS - 1) {
+          return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
+        }
+        continue;
+      }
+
+      if (error instanceof Error && error.message === "VERSION_CONFLICT") {
+        if (intento === MAX_REINTENTOS - 1) {
+          return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
+        }
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
+}
 type StartGameError =
   | "GAME_NOT_FOUND"
   | "VALIDATION_ERROR"
@@ -352,7 +616,8 @@ export async function submitAnswer(
     if (!game) return { ok: false, error: "GAME_NOT_FOUND" }; // → 404
     if (!game.players.some((player) => player.userId === userId))
       return { ok: false, error: "NOT_PARTICIPANT" }; // → 403
-    if (game.status === "WAITING") return { ok: false, error: "GAME_NOT_ACTIVE" }; // → 409
+    if (game.status === "WAITING")
+      return { ok: false, error: "GAME_NOT_ACTIVE" }; // → 409
 
     // BLOQUE 2: la pregunta debe ser de ESTA partida.
     const question = game.questions.find((q) => q.id === gameQuestionId);
@@ -363,7 +628,8 @@ export async function submitAnswer(
     if (question.answers.some((answer) => answer.userId === userId))
       return { ok: false, error: "ALREADY_ANSWERED" }; // → 409
 
-    if (game.status === "FINISHED") return { ok: false, error: "GAME_FINISHED" }; // → 409
+    if (game.status === "FINISHED")
+      return { ok: false, error: "GAME_FINISHED" }; // → 409
 
     /* BLOQUE 3: debe ser la pregunta en juego. En multijugador, además,
        debe ser el turno del usuario: primero turnOrder 1 y después 2. */
@@ -389,7 +655,8 @@ export async function submitAnswer(
     const isCorrect = choice.position === question.solution;
     const esMultijugador = game.mode === "MULTIPLAYER";
     const rondaCompleta =
-      esMultijugador && game.currentTurnOrder === RESPUESTAS_POR_PREGUNTA_MULTIJUGADOR;
+      esMultijugador &&
+      game.currentTurnOrder === RESPUESTAS_POR_PREGUNTA_MULTIJUGADOR;
 
     /* Siguiente estado. En multijugador la misma pregunta pasa del jugador 1
        al 2; solo cuando responde el 2 se avanza a la siguiente pregunta. */

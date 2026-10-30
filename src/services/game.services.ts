@@ -3,7 +3,9 @@
 export { getRandomQuestions, getGameById, getMyGames } from "./game.queries.js";
 export { createGame, submitAnswer } from "./game.mutations.js";
 export {
+  confirmGameReady,
   createMultiplayerGame,
+  deleteWaitingGame,
   joinGame,
   startGame,
 } from "./game.mutations.js";
