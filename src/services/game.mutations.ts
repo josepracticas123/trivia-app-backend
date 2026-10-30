@@ -144,6 +144,33 @@ export async function joinGame(
   }
   return { ok: false, error: "CONFLICTO_CONCURRENCIA" };
 }
+// Eliminacion de la sala en prisma y participantes y demas cosas
+type DeleteGameError = "GAME_NOT_FOUND" | "NOT_ADMIN" | "PARTIDA_YA_INICIADA";
+
+export async function deleteWaitingGame(
+  gameId: number,
+  userId: number,
+): Promise<{ ok: true } | { ok: false; error: DeleteGameError }> {
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    include: { players: true },
+  });
+
+  if (!game) {
+    return { ok: false, error: "GAME_NOT_FOUND" };
+  }
+  const creator = game.players.find((player) => player.isCreator);
+  if (!creator || creator.userId !== userId) {
+    return { ok: false, error: "NOT_ADMIN" };
+  }
+  if (game.mode !== "MULTIPLAYER" || game.status !== "WAITING") {
+    return { ok: false, error: "PARTIDA_YA_INICIADA" };
+  }
+  await prisma.game.delete({
+    where: { id: gameId },
+  });
+  return { ok: true };
+}
 type StartGameError =
   | "GAME_NOT_FOUND"
   | "VALIDATION_ERROR"
@@ -352,7 +379,8 @@ export async function submitAnswer(
     if (!game) return { ok: false, error: "GAME_NOT_FOUND" }; // → 404
     if (!game.players.some((player) => player.userId === userId))
       return { ok: false, error: "NOT_PARTICIPANT" }; // → 403
-    if (game.status === "WAITING") return { ok: false, error: "GAME_NOT_ACTIVE" }; // → 409
+    if (game.status === "WAITING")
+      return { ok: false, error: "GAME_NOT_ACTIVE" }; // → 409
 
     // BLOQUE 2: la pregunta debe ser de ESTA partida.
     const question = game.questions.find((q) => q.id === gameQuestionId);
@@ -363,7 +391,8 @@ export async function submitAnswer(
     if (question.answers.some((answer) => answer.userId === userId))
       return { ok: false, error: "ALREADY_ANSWERED" }; // → 409
 
-    if (game.status === "FINISHED") return { ok: false, error: "GAME_FINISHED" }; // → 409
+    if (game.status === "FINISHED")
+      return { ok: false, error: "GAME_FINISHED" }; // → 409
 
     /* BLOQUE 3: debe ser la pregunta en juego. En multijugador, además,
        debe ser el turno del usuario: primero turnOrder 1 y después 2. */
@@ -389,7 +418,8 @@ export async function submitAnswer(
     const isCorrect = choice.position === question.solution;
     const esMultijugador = game.mode === "MULTIPLAYER";
     const rondaCompleta =
-      esMultijugador && game.currentTurnOrder === RESPUESTAS_POR_PREGUNTA_MULTIJUGADOR;
+      esMultijugador &&
+      game.currentTurnOrder === RESPUESTAS_POR_PREGUNTA_MULTIJUGADOR;
 
     /* Siguiente estado. En multijugador la misma pregunta pasa del jugador 1
        al 2; solo cuando responde el 2 se avanza a la siguiente pregunta. */
