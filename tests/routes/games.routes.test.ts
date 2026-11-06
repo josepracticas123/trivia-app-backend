@@ -24,6 +24,7 @@ vi.mock("../../src/services/game.services.js", () => ({
 
 vi.mock("../../src/sockets/index.js", () => ({
   io: { to: () => ({ emit: vi.fn() }) },
+  refreshPresenceForOnlineUsers: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../../src/lib/prisma.js", () => ({
   prisma: {
@@ -66,7 +67,10 @@ describe("POST /api/games", () => {
   it("devuelve 201 con id y status cuando el servicio crea la partida", async () => {
     vi.mocked(createGame).mockResolvedValue({
       id: 7,
+      mode: "INDIVIDUAL",
       status: "ACTIVE",
+      code: null,
+      createdAt: new Date("2026-11-05T10:00:00.000Z"),
     } as never);
 
     const response = await request(app)

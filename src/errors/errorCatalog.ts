@@ -108,6 +108,11 @@ export const ERRORES = {
     status: 409,
     message: "La partida ya ha sido iniciada",
   },
+  USER_ALREADY_IN_GAME: {
+    code: "USER_ALREADY_IN_GAME",
+    status: 409,
+    message: "Ya participas en otra partida multijugador en curso",
+  },
   WRONG_TURN: {
     code: "WRONG_TURN",
     status: 409,

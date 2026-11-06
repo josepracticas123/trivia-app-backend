@@ -34,6 +34,15 @@ Variables configuradas en Render:
 
 La aplicación escucha en `0.0.0.0` y publica `GET /health`. La URL del frontend debe figurar también en `FRONTEND_ORIGIN`, tanto para HTTP/CORS como para Socket.IO.
 
+### Instancias y presencia Socket.IO
+
+El despliegue inicial debe usar **una única instancia** del backend en Render.
+La presencia de jugadores se mantiene en memoria y las salas Socket.IO no se
+comparten entre réplicas. Antes de aumentar el número de instancias hay que
+incorporar un adaptador Socket.IO compartido y almacenamiento de presencia,
+por ejemplo mediante Redis, y validar la reconexión y las invitaciones entre
+réplicas.
+
 ## PostgreSQL y pgAdmin 4
 
 PostgreSQL permanece separado del proceso del backend, por lo que un redeploy o reinicio del servicio web no elimina los datos. Las migraciones de Prisma se aplican con `npm run db:migrate:deploy`; este comando aplica únicamente las migraciones existentes y no crea ni reinicia esquemas como haría `migrate dev` o `reset`.
@@ -41,6 +50,19 @@ PostgreSQL permanece separado del proceso del backend, por lo que un redeploy o 
 La conexión desde pgAdmin 4 se realizó desde un equipo externo mediante un servidor registrado aparte. Sus credenciales, host y cadena de conexión son secretos operativos: no deben pegarse en documentación, commits, capturas ni variables `VITE_*`.
 
 Antes de cualquier cambio de esquema en producción: hacer una copia de seguridad desde el proveedor o pgAdmin, verificar que se puede restaurar en una base aislada y solo después ejecutar `npm run db:migrate:deploy`.
+
+### Preflight de la migración histórica de contraseñas
+
+La migración `20261015143436_fix_user_column` sustituye la columna histórica
+`passwordHas` por `passwordHash`. Para un primer despliegue en una base vacía no
+hay cuentas que conservar. Si se actualiza una base antigua que ya tiene
+usuarios, no se debe ejecutar `db:migrate:deploy` directamente: primero hay que
+restaurar una copia aislada, comprobar el login de una cuenta existente tras la
+migración y preparar una migración de datos específica si fuera necesaria.
+
+Antes de desplegar, registrar si la base objetivo es nueva o si ya contiene
+cuentas. Nunca incluir la URL de PostgreSQL ni su contraseña en el repositorio,
+Swagger, incidencias o chats.
 
 ## Frontend en Vercel
 

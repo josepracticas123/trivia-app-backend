@@ -9,7 +9,7 @@ Los retos 21 y 22 tienen implementación y evidencias locales registradas. La re
 - El reto 21 documenta el procedimiento de despliegue con Render, PostgreSQL y Vercel.
 - El reto 22 incorpora pruebas locales, Swagger y la documentación de entrega.
 - La puntuación de partidas nuevas usa la misma posición para `solution` y `GameChoice`; la partida histórica investigada no se modificó.
-- `POST /api/auth/login` limita a cinco intentos por IP en 15 minutos; el sexto devuelve `429`, `LOGIN_RATE_LIMITED` y `Retry-After`.
+- `POST /api/auth/login` limita a cinco intentos por IP en 15 minutos fuera del modo desarrollo; el sexto devuelve `429`, `LOGIN_RATE_LIMITED` y `Retry-After`.
 - `npm.cmd run typecheck`, `npm.cmd run build`, la prueba de puntuación aislada y la prueba del límite de login se ejecutaron correctamente el 04/11/2026.
 
 ## Evidencias pendientes del tutor

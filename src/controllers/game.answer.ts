@@ -3,9 +3,9 @@ import { submitAnswer } from "../services/game.services.js";
 import { answerSchema } from "../schemas/answer.schema.js";
 import { idParamSchema } from "../schemas/question-id.schema.js";
 import { responderError } from "../errors/responderError.js";
-import { responderMiddlewareError } from "../errors/responderMiddlewareError.js";
-import { io } from "../sockets/index.js";
+import { io, refreshPresenceForOnlineUsers } from "../sockets/index.js";
 import { prisma } from "../lib/prisma.js";
+import { runPostCommitEffect } from "./post-commit-effects.js";
 
 // Responde la pregunta de partida que está en el turno.
 export async function answerController(req: Request, res: Response) {
@@ -52,22 +52,32 @@ export async function answerController(req: Request, res: Response) {
     return responderError(res, traduccion[resultado.error]);
   }
   // Tras guardar y confirmar la respuesta, leemos estado fresco (id, status, turnVersion)
-  const gameState = await prisma.game?.findUnique({
-    where: { id: gameId },
-    select: { id: true, status: true, turnVersion: true },
-  });
+  const gameState = await runPostCommitEffect(
+    "load answered game state for notification",
+    () =>
+      prisma.game?.findUnique({
+        where: { id: gameId },
+        select: { id: true, status: true, turnVersion: true },
+      }),
+  );
 
   if (gameState) {
+    await runPostCommitEffect("notify answered game", () => {
     // Emitimos aviso a la sala autorizada. Solo datos públicos.
    if (!io) {
-     console.error("Socket.IO no inicializado: no se puede emitir game:updated");
-     return responderMiddlewareError(res, "INTERNAL_SERVER_ERROR");
+     throw new Error("Socket.IO unavailable");
    }
    io.to(`game:${gameState.id}`).emit("game:updated", {
       id: gameState.id,
       status: gameState.status,
       turnVersion: gameState.turnVersion,
     });
+    });
+  }
+  if (resultado.finished) {
+    await runPostCommitEffect("refresh presence after game completion", () =>
+      refreshPresenceForOnlineUsers(),
+    );
   }
   // Modo individual: se conserva el contrato del reto 13.
   if (resultado.mode !== "MULTIPLAYER") {

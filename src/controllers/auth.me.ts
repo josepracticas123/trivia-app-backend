@@ -5,6 +5,7 @@ import {
 } from "../services/auth.services.js";
 import { updateMyProfileSchema } from "../schemas/profile.schema.js";
 import { responderError } from "../errors/responderError.js";
+import { updateOnlineUserDisplayName } from "../services/presence.js";
 
 /* Devuelve los datos públicos del usuario. El middleware deja el ID
    validado en res.locals.userId; la consulta a la base la hace el servicio. */
@@ -31,6 +32,7 @@ export async function updateMeController(req: Request, res: Response) {
     res.locals.userId,
     validation.data.displayName,
   );
+  updateOnlineUserDisplayName(user.id, user.displayName);
 
   return res.status(200).json({ user });
 }

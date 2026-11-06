@@ -19,6 +19,10 @@ export function loginRateLimit(
   res: Response,
   next: NextFunction,
 ) {
+  if (process.env.NODE_ENV === "development") {
+    return next();
+  }
+
   const ahora = Date.now();
   const ip = obtenerIp(req);
   const registro = intentosPorIp.get(ip);

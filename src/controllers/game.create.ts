@@ -2,6 +2,28 @@ import type { Request, Response } from "express";
 import { createGame, createMultiplayerGame } from "../services/game.services.js";
 import { responderError } from "../errors/responderError.js";
 import { createGameSchema } from "../schemas/game.schema.js";
+import { io, refreshPresenceForOnlineUsers } from "../sockets/index.js";
+import { runPostCommitEffect } from "./post-commit-effects.js";
+
+function notifyGameCreated(
+  userId: number,
+  game: {
+    id: number;
+    mode: "INDIVIDUAL" | "MULTIPLAYER";
+    status: "WAITING" | "ACTIVE" | "FINISHED";
+    code: string | null;
+    createdAt: Date;
+  },
+) {
+  if (!io) throw new Error("Socket.IO unavailable");
+  io.to(`user:${userId}`).emit("game:created", {
+    id: game.id,
+    mode: game.mode,
+    status: game.status,
+    code: game.code,
+    createdAt: game.createdAt.toISOString(),
+  });
+}
 
 /*
   Controlador para crear una partida nueva.
@@ -33,7 +55,21 @@ export async function createGameController(req: Request, res: Response) {
 
   // Modo multijugador: crea sala WAITING con código de invitación.
   if (mode === "MULTIPLAYER") {
-    const game = await createMultiplayerGame(userId);
+    let game;
+    try {
+      game = await createMultiplayerGame(userId);
+    } catch (error) {
+      if (error instanceof Error && error.message === "USER_ALREADY_IN_GAME") {
+        return responderError(res, "USER_ALREADY_IN_GAME");
+      }
+      throw error;
+    }
+    await runPostCommitEffect("refresh presence after multiplayer game creation", () =>
+      refreshPresenceForOnlineUsers(),
+    );
+    await runPostCommitEffect("notify multiplayer game creation", () =>
+      notifyGameCreated(userId, game),
+    );
     return res.status(201).json({
       id: game.id,
       status: game.status,
@@ -46,6 +82,9 @@ export async function createGameController(req: Request, res: Response) {
   if (!game) {
     return responderError(res, "NOT_ENOUGH_QUESTIONS"); // Menos de 5 preguntas en catálogo.
   }
+  await runPostCommitEffect("notify individual game creation", () =>
+    notifyGameCreated(userId, game),
+  );
   return res.status(201).json({
     id: game.id,
     status: game.status,

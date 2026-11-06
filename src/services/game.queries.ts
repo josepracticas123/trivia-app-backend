@@ -260,8 +260,12 @@ export async function getMyGames(
   userId: number,
   page: number,
   pageSize: number,
+  status?: "WAITING" | "ACTIVE" | "FINISHED",
 ) {
-  const where = { players: { some: { userId } } };
+  const where = {
+    players: { some: { userId } },
+    ...(status ? { status } : {}),
+  };
 
   const [partidas, total] = await Promise.all([
     prisma.game.findMany({

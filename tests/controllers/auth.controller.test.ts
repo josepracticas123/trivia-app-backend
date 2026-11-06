@@ -4,6 +4,7 @@ import request from "supertest";
 import jwt from "jsonwebtoken";
 import { authRouter } from "../../src/routes/auth.routes.js";
 import { resetLoginRateLimitForTests } from "../../src/middlewares/login-rate-limit.middleware.js";
+import { resetRegisterRateLimitForTests } from "../../src/middlewares/register-rate-limit.middleware.js";
 import { loginUser, registerUser } from "../../src/services/auth.services.js";
 // Simulamos Prisma para no necesitar DATABASE_URL en los tests.
 vi.mock("../../src/lib/prisma.js", () => ({
@@ -30,6 +31,7 @@ describe("POST /api/auth/login", () => {
   beforeEach(() => {
     // Usamos un secreto exclusivo para estas pruebas.
     process.env.JWT_SECRET = "secreto-solo-para-tests";
+    process.env.NODE_ENV = "production";
     resetLoginRateLimitForTests();
     vi.clearAllMocks();
   });
@@ -122,6 +124,21 @@ describe("POST /api/auth/login", () => {
     });
     expect(loginUser).toHaveBeenCalledTimes(5);
   });
+
+  it("no limita los intentos cuando el servidor está en desarrollo", async () => {
+    process.env.NODE_ENV = "development";
+    vi.mocked(loginUser).mockResolvedValue(null);
+
+    for (let intento = 0; intento < 6; intento++) {
+      const respuesta = await request(app)
+        .post("/api/auth/login")
+        .send({ email: "ana@email.com", password: "incorrecta123" });
+
+      expect(respuesta.status).toBe(401);
+    }
+
+    expect(loginUser).toHaveBeenCalledTimes(6);
+  });
 });
 
 /* Comprobamos que un usuario no pueda convertirse en admin
@@ -129,6 +146,8 @@ describe("POST /api/auth/login", () => {
 describe("POST /api/auth/register", () => {
   // Agrupamos pruebas relacionadas con el registro de usuarios.
   beforeEach(() => {
+    process.env.NODE_ENV = "production";
+    resetRegisterRateLimitForTests();
     vi.clearAllMocks();
   });
   it("registra un nombre válido, lo recorta y lo devuelve", async () => {
@@ -195,6 +214,37 @@ describe("POST /api/auth/register", () => {
       email: "ana2@email.com",
       displayName: "Ana",
     });
+  });
+
+  it("limita el sexto registro de la misma IP con 429 y Retry-After", async () => {
+    vi.mocked(registerUser).mockImplementation(async (email, _password, displayName) => ({
+      id: 7,
+      email,
+      displayName,
+    }));
+
+    for (let intento = 0; intento < 5; intento++) {
+      const respuesta = await request(app)
+        .post("/api/auth/register")
+        .set("X-Forwarded-For", "203.0.113.11")
+        .send({ displayName: "Ana", email: `ana${intento}@email.com`, password: "secreta123" });
+      expect(respuesta.status).toBe(201);
+    }
+
+    const limitada = await request(app)
+      .post("/api/auth/register")
+      .set("X-Forwarded-For", "203.0.113.11")
+      .send({ displayName: "Ana", email: "ana6@email.com", password: "secreta123" });
+
+    expect(limitada.status).toBe(429);
+    expect(Number(limitada.headers["retry-after"])).toBeGreaterThan(0);
+    expect(limitada.body).toEqual({
+      error: {
+        code: "REGISTER_RATE_LIMITED",
+        message: "Demasiados intentos de registro. Inténtalo de nuevo más tarde.",
+      },
+    });
+    expect(registerUser).toHaveBeenCalledTimes(5);
   });
 
   it.each([

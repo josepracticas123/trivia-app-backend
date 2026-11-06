@@ -36,7 +36,13 @@ app.set("trust proxy", 1);
 app.use(
   cors({
     origin(origin, callback) {
-      callback(null, isAllowedFrontendOrigin(origin) ? origin : false);
+      const normalizedOrigin = origin?.trim();
+      callback(
+        null,
+        normalizedOrigin && isAllowedFrontendOrigin(normalizedOrigin)
+          ? normalizedOrigin
+          : false,
+      );
     },
     credentials: true,
   }),
@@ -534,7 +540,7 @@ app.use("/api/categories", categoryRouter);
  * /api/auth/login:
  *   post:
  *     summary: Iniciar sesión
- *     description: Comprueba el email y la contraseña y devuelve un token JWT. Acepta un máximo de 5 intentos por IP cada 15 minutos; el exceso devuelve 429.
+ *     description: Comprueba el email y la contraseña y devuelve un token JWT. Fuera del modo desarrollo acepta 5 intentos por IP cada 15 minutos; el exceso devuelve 429.
  *     requestBody:
  *       required: true
  *       content:
@@ -622,6 +628,22 @@ app.use("/api/categories", categoryRouter);
  *               error:
  *                 code: EMAIL_ALREADY_EXISTS
  *                 message: El email ya está registrado
+ *       429:
+ *         description: Demasiados intentos de registro desde esta IP. Reintenta cuando indique Retry-After.
+ *         headers:
+ *           Retry-After:
+ *             description: Segundos restantes hasta que la IP pueda volver a intentarlo.
+ *             schema:
+ *               type: integer
+ *               minimum: 1
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ *             example:
+ *               error:
+ *                 code: REGISTER_RATE_LIMITED
+ *                 message: Demasiados intentos de registro. Inténtalo de nuevo más tarde.
  *       500:
  *         description: Error interno del servidor
  *         content:
@@ -637,7 +659,7 @@ app.use("/api/auth", authRouter);
  * /api/games:
  *   post:
  *     summary: Crea una partida (individual o multijugador)
- *     description: Crea una partida. Si se envía mode "MULTIPLAYER", crea una sala en estado WAITING con un código de invitación; si no, crea una partida individual ACTIVE.
+ *     description: Crea una partida. Si se envía mode "MULTIPLAYER", crea una sala WAITING pública con código; las salas privadas por invitación se crean mediante Socket.IO y no tienen código de acceso. Si no se envía mode, crea una partida individual ACTIVE.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -677,7 +699,7 @@ app.use("/api/auth", authRouter);
  *             schema:
  *               $ref: "#/components/schemas/Error"
  *       409:
- *         description: No hay cinco preguntas disponibles
+ *         description: No hay cinco preguntas disponibles o el usuario ya participa en otra sala multijugador WAITING/ACTIVE.
  *         content:
  *           application/json:
  *             schema:
@@ -731,7 +753,7 @@ app.use("/api/auth", authRouter);
  *             schema:
  *               $ref: "#/components/schemas/Error"
  *       409:
- *         description: Sala llena o ya iniciada
+ *         description: Sala llena, ya iniciada o el usuario ya participa en otra sala multijugador WAITING/ACTIVE.
  *         content:
  *           application/json:
  *             schema:
@@ -1057,6 +1079,13 @@ app.get("/api/me", authMiddleware, meController);
  *       - in: query
  *         name: pageSize
  *         schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+ *       - in: query
+ *         name: status
+ *         description: Filtra las partidas antes de paginar; si se omite, incluye todos los estados.
+ *         schema:
+ *           type: string
+ *           enum: [WAITING, ACTIVE, FINISHED]
+ *           example: ACTIVE
  *     responses:
  *       200:
  *         description: Lista pública de partidas del usuario
@@ -1064,8 +1093,13 @@ app.get("/api/me", authMiddleware, meController);
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/HistorialPartidas"
+ *             example:
+ *               items: []
+ *               total: 0
+ *               page: 1
+ *               pageSize: 10
  *       400:
- *         description: Parámetros de paginación inválidos
+ *         description: Parámetros de paginación o estado inválidos
  *         content:
  *           application/json:
  *             schema:

@@ -135,7 +135,7 @@ Guía de estudio para un desarrollador junior que necesita comprender y explicar
 
 **P15: ¿Cómo se autentica un cliente WebSocket?**
 
-**R:** En `src/sockets/index.ts`, el middleware de Socket.IO lee el token de `socket.handshake.auth.token` o `socket.handshake.query.token`, lo verifica con `jwt.verify` usando `JWT_SECRET`, y guarda `socket.data.userId`. Si falta o es inválido, rechaza la conexión.
+**R:** En `src/sockets/index.ts`, el middleware de Socket.IO lee el token de `socket.handshake.auth.token`, lo verifica con `jwt.verify` usando `JWT_SECRET`, y guarda `socket.data.userId`. Si falta o es inválido, rechaza la conexión. No se aceptan tokens en la query string.
 
 **P16: ¿Qué evento se emite tras responder una pregunta y qué datos contiene?**
 

@@ -1,9 +1,9 @@
 import type { Request, Response } from "express";
 import { confirmGameReady } from "../services/game.services.js";
 import { responderError } from "../errors/responderError.js";
-import { responderMiddlewareError } from "../errors/responderMiddlewareError.js";
 import { idParamSchema } from "../schemas/question-id.schema.js";
 import { io } from "../sockets/index.js";
+import { runPostCommitEffect } from "./post-commit-effects.js";
 
 // El creador inicia la partida multijugador.
 export async function startGameController(req: Request, res: Response) {
@@ -21,14 +21,13 @@ const resultado = await confirmGameReady(gameId, userId);
   if (!resultado.ok) {
     return responderError(res, resultado.error);
   }
-  if (!io) {
-    console.error("Socket.IO no inicializado: no se puede emitir game:updated");
-    return responderMiddlewareError(res, "INTERNAL_SERVER_ERROR");
-  }
-  io.to(`game:${gameId}`).emit("game:updated", {
-    id: gameId,
-    turnVersion: resultado.game.turnVersion,// ahora viene confirmado
-    status: resultado.game.status, // ahora ACTIVE
+  await runPostCommitEffect("notify game readiness", () => {
+    if (!io) throw new Error("Socket.IO unavailable");
+    io.to(`game:${gameId}`).emit("game:updated", {
+      id: gameId,
+      turnVersion: resultado.game.turnVersion,// ahora viene confirmado
+      status: resultado.game.status, // ahora ACTIVE
+    });
   });
 
  return res.status(200).json({

@@ -8,13 +8,14 @@ import {
   loginController,
 } from "../controllers/auth.controller.js";
 import { loginRateLimit } from "../middlewares/login-rate-limit.middleware.js";
+import { registerRateLimit } from "../middlewares/register-rate-limit.middleware.js";
 // Router agrupado bajo /api/auth
 export const authRouter = Router();
 
 // Crea una cuenta
 // Recibe datos de registro (email, password), valida y crea el usuario.
 // Devuelve 201 con el id y email, o 409 si el email ya existe.
-authRouter.post("/register", registerController);
+authRouter.post("/register", registerRateLimit, registerController);
 
 // Permite iniciar sesión con email y contraseña.
 // Valida credenciales, genera token JWT y devuelve datos del usuario.

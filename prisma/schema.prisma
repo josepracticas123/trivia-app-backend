@@ -53,6 +53,8 @@ model user {
   role         Role         @default(USER)
   games        GamePlayer[]
   answers      Answer[]
+  sentGameInvitations     GameInvitation[] @relation("GameInvitationSender")
+  receivedGameInvitations GameInvitation[] @relation("GameInvitationReceiver")
 }
 
 enum GameMode {
@@ -66,6 +68,14 @@ enum GameStatus {
   WAITING
   ACTIVE
   FINISHED
+}
+
+enum GameInvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  EXPIRED
 }
 
 // Una partida de trivia.
@@ -86,6 +96,26 @@ model Game {
   winnerUserId Int?
   players    GamePlayer[]
   questions  GameQuestion[]
+  invitations GameInvitation[]
+}
+
+model GameInvitation {
+  id         String               @id @default(uuid()) @db.Uuid
+  senderId   Int
+  receiverId Int
+  status     GameInvitationStatus @default(PENDING)
+  createdAt  DateTime             @default(now())
+  expiresAt  DateTime
+  respondedAt DateTime?
+  gameId     Int?
+  sender     user                 @relation("GameInvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   user                 @relation("GameInvitationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  game       Game?                @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  @@index([senderId, createdAt])
+  @@index([receiverId, status, expiresAt])
+  @@index([status, expiresAt])
+  @@index([gameId])
 }
 
 // Participantes de una partida, tanto individual como multijugador.

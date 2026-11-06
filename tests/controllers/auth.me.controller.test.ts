@@ -30,6 +30,11 @@ vi.mock("../../src/controllers/game.controller.js", () => ({
 
 import { meRouter } from "../../src/routes/me.routes.js";
 import { updateDisplayNameById } from "../../src/services/auth.services.js";
+import {
+  getOnlineUser,
+  registerOnlineSocket,
+  resetPresenceForTests,
+} from "../../src/services/presence.js";
 
 const app = express();
 app.use(express.json());
@@ -38,9 +43,14 @@ app.use("/api/me", meRouter);
 describe("PATCH /api/me", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetPresenceForTests();
   });
 
   it("actualiza solo el displayName del usuario autenticado", async () => {
+    registerOnlineSocket(
+      { userId: 42, displayName: "Nombre anterior", status: "AVAILABLE" },
+      "socket-42",
+    );
     vi.mocked(updateDisplayNameById).mockResolvedValue({
       id: 42,
       email: "ana@email.com",
@@ -64,6 +74,11 @@ describe("PATCH /api/me", () => {
 
     // El ID viene del middleware/JWT, nunca del cuerpo HTTP.
     expect(updateDisplayNameById).toHaveBeenCalledWith(42, "Ana");
+    expect(getOnlineUser(42)).toEqual({
+      userId: 42,
+      displayName: "Ana",
+      status: "AVAILABLE",
+    });
   });
 
   it("rechaza un nombre demasiado corto", async () => {

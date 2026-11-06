@@ -53,32 +53,72 @@ export async function generarCodigoUnico(): Promise<string> {
 export async function createMultiplayerGame(userId: number) {
   const codigo = await generarCodigoUnico();
 
-  const game = await prisma.game.create({
-    data: {
-      mode: "MULTIPLAYER",
-      code: codigo,
-      status: "WAITING",
-      players: {
-        // El creador es siempre el jugador 1.
-        create: { userId, isCreator: true, turnOrder: 1 },
-      },
-    },
-  });
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "user" WHERE "id" = ${userId} FOR UPDATE`;
+      const activeGame = await tx.gamePlayer.findFirst({
+        where: {
+          userId,
+          game: {
+            mode: "MULTIPLAYER",
+            status: { in: ["WAITING", "ACTIVE"] },
+          },
+        },
+        select: { id: true },
+      });
+      if (activeGame) throw new Error("USER_ALREADY_IN_GAME");
 
-  return game;
+      return tx.game.create({
+        data: {
+          mode: "MULTIPLAYER",
+          code: codigo,
+          status: "WAITING",
+          players: {
+            create: { userId, isCreator: true, turnOrder: 1 },
+          },
+        },
+      });
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2034"
+    ) {
+      const activeGame = await prisma.gamePlayer.findFirst({
+        where: {
+          userId,
+          game: {
+            mode: "MULTIPLAYER",
+            status: { in: ["WAITING", "ACTIVE"] },
+          },
+        },
+        select: { id: true },
+      });
+      if (activeGame) throw new Error("USER_ALREADY_IN_GAME");
+    }
+    throw error;
+  }
 }
 const MAX_REINTENTOS = 3;
 type JoinGameError =
   | "GAME_NOT_FOUND"
   | "PARTIDA_YA_INICIADA"
   | "SALA_LLENA"
+  | "USER_ALREADY_IN_GAME"
   | "CONFLICTO_CONCURRENCIA";
 
 export async function joinGame(
   userId: number,
   code: string,
 ): Promise<
-  | { ok: true; game: { id: number; status: string; turnVersion: number } }
+  | {
+      ok: true;
+      game: {
+        id: number;
+        status: "WAITING" | "ACTIVE" | "FINISHED";
+        turnVersion: number;
+      };
+    }
   | { ok: false; error: JoinGameError }
 > {
   for (let intento = 0; intento < MAX_REINTENTOS; intento++) {
@@ -98,6 +138,20 @@ export async function joinGame(
     try {
       await prisma.$transaction(
         async (tx) => {
+          await tx.$queryRaw`SELECT "id" FROM "user" WHERE "id" = ${userId} FOR UPDATE`;
+          const otherLiveGame = await tx.gamePlayer.findFirst({
+            where: {
+              userId,
+              gameId: { not: game.id },
+              game: {
+                mode: "MULTIPLAYER",
+                status: { in: ["WAITING", "ACTIVE"] },
+              },
+            },
+            select: { id: true },
+          });
+          if (otherLiveGame) throw new Error("USER_ALREADY_IN_GAME");
+
           const count = await tx.gamePlayer.count({
             where: { gameId: game.id },
           });
@@ -137,6 +191,9 @@ export async function joinGame(
       // Sala llena (nuestro throw manual).
       if (error instanceof Error && error.message === "SALA_LLENA") {
         return { ok: false, error: "SALA_LLENA" };
+      }
+      if (error instanceof Error && error.message === "USER_ALREADY_IN_GAME") {
+        return { ok: false, error: "USER_ALREADY_IN_GAME" };
       }
       // Conflicto de concurrencia Serializable → reintentar.
       if (
@@ -245,7 +302,11 @@ preguntsa en la sala*/
  | {
   ok: true;
   started: boolean;
-  game: {id: number; status: string; turnVersion: number};
+  game: {
+    id: number;
+    status: "WAITING" | "ACTIVE" | "FINISHED";
+    turnVersion: number;
+  };
  }
  | {ok:false; error: ConfirmGameReadyError};
  
@@ -428,7 +489,14 @@ export async function startGame(
   gameId: number,
   userId: number,
 ): Promise<
-  | { ok: true; game: { id: number; status: string; turnVersion: number } }
+  | {
+      ok: true;
+      game: {
+        id: number;
+        status: "WAITING" | "ACTIVE" | "FINISHED";
+        turnVersion: number;
+      };
+    }
   | { ok: false; error: StartGameError }
 > {
   for (let intento = 0; intento < MAX_REINTENTOS; intento++) {

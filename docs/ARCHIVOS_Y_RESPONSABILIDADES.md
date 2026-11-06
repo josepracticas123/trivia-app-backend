@@ -425,8 +425,8 @@ Inventario organizado por carpetas y archivos del backend. Todas las rutas son r
 - **Qué contiene:**
   - `getRandomQuestions()`: obtiene 5 preguntas aleatorias del catálogo usando SQL nativo (`ORDER BY RANDOM() LIMIT 5`) y luego las recupera con Prisma.
   - `getGameById(gameId, userId?)`: busca una partida por ID con participantes, preguntas, opciones y respuestas. Calcula puntuación revelada, turno actual, siguiente pregunta, etc.
-  - `getMyGames(userId, page, pageSize)`: obtiene las partidas del usuario paginadas, calculando la puntuación visible según el modo y estado.
-- **Funciones principales:** `getRandomQuestions()`, `getGameById(gameId, userId?)`, `getMyGames(userId, page, pageSize)`.
+  - `getMyGames(userId, page, pageSize, status?)`: filtra opcionalmente por estado antes de paginar y calcula la puntuación visible.
+- **Funciones principales:** `getRandomQuestions()`, `getGameById(gameId, userId?)`, `getMyGames(userId, page, pageSize, status?)`.
 - **Quién lo utiliza:** `src/services/game.services.ts` (reexportación) → controladores de partidas.
 
 ### Archivo: `src/services/game.mutations.ts`
@@ -443,6 +443,18 @@ Inventario organizado por carpetas y archivos del backend. Todas las rutas son r
 - **Quién lo utiliza:** `src/services/game.services.ts` (reexportación) → controladores de partidas.
 - **A quién utiliza:** `src/lib/prisma.ts` (`prisma`), `src/errors/errorCatalog.ts` (`ERRORES`), `@prisma/client` (`Prisma`), `src/services/game.queries.ts` (`getRandomQuestions`), `src/services/game.types.ts` (tipos y constantes).
 - **Cómo se conecta con el rest:** Capa de acceso a datos y lógica de negocio para partidas. Usa transacciones con nivel `Serializable` para control de concurrencia.
+
+### Archivo: `src/services/presence.ts`
+
+- **Responsabilidad:** Mantener presencia por usuario y contar varios sockets/pestañas como una única conexión.
+- **Qué contiene:** Estados públicos `AVAILABLE` e `IN_GAME`, paginación de usuarios disponibles y consulta de participaciones en partidas multijugador `WAITING` o `ACTIVE`. Solo el último socket que se desconecta marca al usuario offline.
+- **Límite de despliegue:** El mapa es local a la instancia; se requiere un almacén compartido para desplegar varias instancias.
+
+### Archivo: `src/services/game-invitations.ts`
+
+- **Responsabilidad:** Aplicar las reglas de negocio y persistencia de invitaciones privadas.
+- **Qué contiene:** Envío, aceptación transaccional, rechazo, cancelación, caducidad, límites antiabuso y cancelación de invitaciones asociadas a usuarios desconectados u ocupados.
+- **Regla de disponibilidad:** Un usuario no puede tener más de una partida multijugador `WAITING` o `ACTIVE`; la misma regla se protege en las vías existentes de crear y unirse a salas.
 
 ## Carpeta `src/lib/`
 
@@ -504,9 +516,9 @@ Inventario organizado por carpetas y archivos del backend. Todas las rutas son r
 
 ### Archivo: `src/sockets/index.ts`
 
-- **Responsabilidad:** Configuración de Socket.IO. Crea el servidor de WebSockets sobre el mismo servidor HTTP, autentica conexiones por JWT y maneja el evento `join:game` para unir sockets a salas de partida.
+- **Responsabilidad:** Configuración de Socket.IO. Autentica conexiones por JWT, gestiona salas de partida, presencia e invitaciones.
 - **Lógica de reconexión:** Cada conexión usa un socket nuevo. El cliente conserva el id de partida, emite `join:game` tras conectar y consulta el estado persistido con `GET /api/games/:id` después de recibir `joined:game`.
-- **Qué contiene:** Crea `io = new SocketIOServer(server, { cors: { origin: FRONTEND_ORIGIN, credentials: true } })`. Middleware de Socket.IO que verifica el JWT y guarda `socket.data.userId`. Evento `connection` que escucha `join:game` y une el socket a la sala `game:${gameId}` si el usuario participa en esa partida.
+- **Qué contiene:** Middleware de autenticación JWT; autorización de `join:game`; actualización de presencia por usuario; eventos de presencia y flujo de invitaciones privadas. Los contratos de eventos están en `docs/eventos.md`.
 - **Funciones principales:** Exporta la instancia `io`.
 - **Quién lo utiliza:** `src/server.ts` (importa como efecto secundario), `src/controllers/game.answer.ts`, `src/controllers/game.join.ts`, `src/controllers/game.start.ts` (usan `io` para emitir eventos).
 - **A quién utiliza:** `src/server.ts` (el servidor HTTP), `src/lib/prisma.ts` (`prisma`), `jsonwebtoken`, `process.env.JWT_SECRET`, `process.env.FRONTEND_ORIGIN`.
@@ -642,7 +654,7 @@ Inventario organizado por carpetas y archivos del backend. Todas las rutas son r
 
 - **Quién lo utiliza:** `src/controllers/question.get.ts` y `src/controllers/game.history.ts`.
 - **A quién utiliza:** `zod`.
-- **Cómo se conecta con el resto:** Valida query params de `GET /api/questions` y `GET /api/me/games`.
+- **Cómo se conecta con el resto:** `paginationQuerySchema` valida `GET /api/questions`; `gameHistoryQuerySchema` valida paginación y estado de `GET /api/me/games`.
 - **Ejemplo de funcionamiento:** `GET /api/questions?page=2&pageSize=20&search=capital` pasa la validación.
 - **Qué revisar si quiero modificararlo:** Los valores llegan como string de la URL; `coerce.number()` los convierte a número.
 
@@ -669,12 +681,12 @@ Inventario organizado por carpetas y archivos del backend. Todas las rutas son r
 - **Qué revisar si quiero modificarlo:** Siempre requiere `authMiddleware` porque necesita `res.locals.userId`.
 
 - **Responsabilidad:** Devuelve el historial de partidas del usuario autenticado.
-- **Qué contiene:** Función `getMyGamesController(req, res)`. Obtiene `userId` de `res.locals`, valida query params con `paginationQuerySchema`, llama a `getMyGames(userId, page, pageSize)` del servicio y responde con `{ items, total, page, pageSize }`.
+- **Qué contiene:** Función `getMyGamesController(req, res)`. Obtiene `userId` de `res.locals`, valida query params con `gameHistoryQuerySchema`, llama a `getMyGames(userId, page, pageSize, status?)` y responde con `{ items, total, page, pageSize }`.
 - **Funciones principales:** `getMyGamesController(req, res)`.
 - **Quién lo utiliza:** `src/controllers/game.controller.ts` → `src/routes/me.routes.ts` (ruta `GET /api/me/games` con `authMiddleware`).
-- **A quién utiliza:** `src/services/game.services.ts` (`getMyGames`), `src/schemas/query.schema.ts` (`paginationQuerySchema`), `src/errors/responderError.ts`.
-- **Cómo se conecta con el resto:** Requiere autenticación. Devuelve partidas paginadas del usuario.
-- **Ejemplo de funcionamiento:** `GET /api/me/games?page=1&pageSize=10` devuelve las partidas del usuario paginadas.
+- **A quién utiliza:** `src/services/game.services.ts` (`getMyGames`), `src/schemas/query.schema.ts` (`gameHistoryQuerySchema`), `src/errors/responderError.ts`.
+- **Cómo se conecta con el resto:** Requiere autenticación. Filtra opcionalmente por estado y pagina las partidas coincidentes.
+- **Ejemplo de funcionamiento:** `GET /api/me/games?status=ACTIVE&page=1&pageSize=10` devuelve las partidas activas del usuario.
 - **Qué revisar si quiero modificarlo:** El servicio calcula la puntuación visible según el modo y estado de cada partida.
 
 - **A quién utiliza:** `src/services/game.services.ts` (`getGameById`), `src/schemas/question-id.schema.ts`, `src/errors/responderError.ts`, `prisma` (para lectura adicional del estado).

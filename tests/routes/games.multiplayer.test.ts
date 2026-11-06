@@ -31,6 +31,7 @@ vi.mock("../../src/services/game.services.js", () => ({
 
 vi.mock("../../src/sockets/index.js", () => ({
   io: { to: () => ({ emit: vi.fn() }) },
+  refreshPresenceForOnlineUsers: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../../src/lib/prisma.js", () => ({
   prisma: { user: { findUnique: vi.fn() } },
@@ -65,8 +66,10 @@ describe("POST /api/games - multijugador", () => {
     // Simulamos que el servicio crea la sala.
     vi.mocked(createMultiplayerGame).mockResolvedValue({
       id: 1,
+      mode: "MULTIPLAYER",
       status: "WAITING",
       code: "ABCDEF",
+      createdAt: new Date("2026-11-05T10:00:00.000Z"),
     } as never);
 
     const token = tokenDe(1); // Token del usuario 1.

@@ -67,7 +67,7 @@ El endpoint `/health` ya está disponible. El puerto por defecto es 3000; al cam
 | `npm ci` | Instala las versiones exactas del lockfile en un clon limpio |
 | `npm install paquete` | Añade una dependencia cuando toca; actualiza ambos archivos de paquetes |
 | `npm install -D paquete` | Añade una herramienta usada para desarrollar |
-| `npm run dev` | Ejecuta TypeScript con tsx, carga `.env` si existe y reinicia al guardar |
+| `npm run dev` | Ejecuta TypeScript con tsx, carga `.env` si existe, desactiva el límite de intentos de login y reinicia al guardar |
 | `npm run typecheck` | Comprueba tipos sin generar archivos |
 | `npm run build` | Comprueba y compila `src/` a `dist/` |
 | `npm start` | Ejecuta `dist/server.js`; necesita una compilación previa |
@@ -80,6 +80,8 @@ El endpoint `/health` ya está disponible. El puerto por defecto es 3000; al cam
 | `npm run test:integration` | Ejecuta las pruebas de integración con Supertest contra la base de datos de pruebas; requiere tenerla configurada (ver `tests/README.md`) |
 
 `tsx` ejecuta el código, pero no sustituye la comprobación de tipos. No hay script `lint` todavía. Ya existen pruebas automatizadas: `npm test` (Vitest con mocks, sin base de datos) y `npm run test:integration` (contra una base de datos PostgreSQL real de pruebas). El detalle está en `tests/README.md`. Antes de entregar, ejecuta siempre `typecheck`, `build` y las pruebas.
+
+El límite de 5 intentos de inicio de sesión por IP cada 15 minutos se mantiene fuera del modo desarrollo. `npm run dev` activa ese modo; `npm start` lo aplica siempre que `NODE_ENV` no esté configurado como `development`.
 
 ### PostgreSQL y Prisma (Reto 06)
 
@@ -117,6 +119,10 @@ Para configurar una instalación local:
 6. Abre `npm run db:studio` o la vista de datos de Railway para inspeccionar `Question` y `_prisma_migrations`. Para verificar la idempotencia del seed, cuenta filas antes, ejecútalo dos veces, vuelve a contar y registra los resultados reales. Cerrar y reabrir Studio no borra los datos persistidos en PostgreSQL.
 
 El modelo está en `prisma/schema.prisma`, el historial reproducible en `prisma/migrations/` y el seed en `src/lib/seed.ts`. El cliente Prisma local y los comandos CLI leen `DATABASE_URL`; las rutas de la API siguen usando datos en memoria hasta el reto 07. Un backend alojado en Railway puede usar la URL privada de PostgreSQL del mismo entorno. La CLI `migrate status` solo inspecciona el historial; `migrate dev` cambia el esquema y `seed` inserta datos.
+
+El historial autenticado se consulta en `GET /api/me/games`; admite `page`, `pageSize` y el filtro opcional `status=WAITING|ACTIVE|FINISHED` (por ejemplo, `/api/me/games?status=ACTIVE&page=1&pageSize=10`). Los contratos y las instrucciones de actualización por Socket.IO están en [docs/eventos.md](docs/eventos.md). Los eventos son avisos; el historial y el detalle se recuperan por HTTP.
+
+El lobby también puede consultar presencia mediante Socket.IO (`presence:request`) y enviar invitaciones privadas a partidas multijugador. Las conexiones requieren JWT; las invitaciones persisten en PostgreSQL y la presencia en memoria presupone una sola instancia de backend. Ver [docs/eventos.md](docs/eventos.md) para estados, límites, payloads y comportamiento al desconectarse.
 
 Las pruebas de integración (`npm run test:integration`) no usan la base de prácticas, sino una base de datos PostgreSQL **local** y separada (`trivia_test`), porque crean y borran datos. Se configura con `tests/.env.test` (ignorado por Git) y se detalla en `tests/README.md`. El comando `npm test` no toca ninguna base de datos.
 

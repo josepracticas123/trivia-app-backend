@@ -12,3 +12,9 @@ export const paginationQuerySchema = z.object({
   // categoryId opcional (número)
   categoryId: z.coerce.number().int().min(1).max(2147483647).optional(),
 });
+
+export const gameHistoryQuerySchema = paginationQuerySchema
+  .pick({ page: true, pageSize: true })
+  .extend({
+    status: z.enum(["WAITING", "ACTIVE", "FINISHED"]).optional(),
+  });

@@ -11,7 +11,12 @@ vi.mock("../../src/lib/prisma.js", () => ({
     gameQuestion: { create: vi.fn() },
     $transaction: vi.fn(async (cb: any) => {
       const tx = {
-        gamePlayer: { count: vi.fn(), create: vi.fn() },
+        $queryRaw: vi.fn().mockResolvedValue([]),
+        gamePlayer: {
+          count: vi.fn(),
+          create: vi.fn(),
+          findFirst: vi.fn().mockResolvedValue(null),
+        },
         game: { updateMany: vi.fn() },
         gameQuestion: { create: vi.fn() },
       };
